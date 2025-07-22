@@ -1,39 +1,13 @@
 "use client"
 
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState, useRef } from "react"
+import SimpleReactValidator from "simple-react-validator"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { getUsers, saveUsers } from "@/data/users"
 
-const createUserSchema = z.object({
-  firstName: z
-    .string()
-    .min(2, "First name must be at least 2 characters")
-    .max(25, "First name must be less than 25 characters"),
-  lastName: z
-    .string()
-    .min(2, "Last name must be at least 2 characters")
-    .max(25, "Last name must be less than 25 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  role: z.enum(["Admin", "User"], {
-    required_error: "Please select a role",
-  }),
-})
-
-type CreateUserFormValues = z.infer<typeof createUserSchema>
 
 interface CreateUserDialogProps {
   open: boolean
@@ -41,127 +15,133 @@ interface CreateUserDialogProps {
 }
 
 export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) {
-  const [isLoading, setIsLoading] = useState(false)
-
-  const form = useForm<CreateUserFormValues>({
-    resolver: zodResolver(createUserSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      role: "User",
-    },
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    role: "User",
   })
 
-  const onSubmit = async (data: CreateUserFormValues) => {
-    setIsLoading(true)
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      console.log("Creating user:", data)
+  const [forceUpdate, setForceUpdate] = useState(false)
+  const validator = useRef(
+    new SimpleReactValidator({
+      autoForceUpdate: { forceUpdate: () => setForceUpdate(!forceUpdate) },
+    })
+  )
 
-      // Reset form and close dialog
-      form.reset()
-      onOpenChange(false)
-    } catch (error) {
-      console.error("Error creating user:", error)
-    } finally {
-      setIsLoading(false)
-    }
+  const handleChange = (e: any) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleRoleChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, role: value }))
   }
 
   const handleClose = () => {
-    form.reset()
+    setFormData({ firstName: "", lastName: "", email: "", role: "User" })
     onOpenChange(false)
   }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (validator.current.allValid()) {
+      const currentUsers = getUsers()
+      const newId = String(Math.max(...currentUsers.map((u) => parseInt(u.id))) + 1)
+
+      const newUser = {
+        id: newId,
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        role: formData.role as "Admin" | "User",
+        status: "Active" as const,
+        lastLogin: new Date().toLocaleString(),
+        avatar: "/placeholder.svg",
+      }
+
+      const updatedUsers = [...currentUsers, newUser]
+      saveUsers(updatedUsers)
+
+      handleClose()
+    } else {
+      validator.current.showMessages()
+      setForceUpdate(!forceUpdate)
+    }
+  }
+
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create New User</DialogTitle>
-          <DialogDescription>
-            Add a new user to the RelaxFlow platform. Fill in all required fields below.
-          </DialogDescription>
+          <DialogDescription>Add a new user to the RelaxFlow platform.</DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium">First Name</label>
+            <Input
               name="firstName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>First Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter first name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              value={formData.firstName}
+              onChange={handleChange}
+              placeholder="Enter first name"
             />
+            <div className="text-red-500 text-xs">
+              {validator.current.message("first name", formData.firstName, "required|alpha|min:2")}
+            </div>
+          </div>
 
-            <FormField
-              control={form.control}
+          <div>
+            <label className="block text-sm font-medium">Last Name</label>
+            <Input
               name="lastName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Last Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter last name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              value={formData.lastName}
+              onChange={handleChange}
+              placeholder="Enter last name"
             />
+            <div className="text-red-500 text-xs">
+              {validator.current.message("last name", formData.lastName, "required|alpha|min:2")}
+            </div>
+          </div>
 
-            <FormField
-              control={form.control}
+          <div>
+            <label className="block text-sm font-medium">Email</label>
+            <Input
               name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="Enter email address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="Enter email"
+              type="email"
             />
+            <div className="text-red-500 text-xs">
+              {validator.current.message("email", formData.email, "required|email")}
+            </div>
+          </div>
 
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="User">User</SelectItem>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div>
+            <label className="block text-sm font-medium mb-1">Role</label>
+            <Select value={formData.role} onValueChange={handleRoleChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="User">User</SelectItem>
+                <SelectItem value="Admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-red-500 text-xs">
+              {validator.current.message("role", formData.role, "required")}
+            </div>
+          </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create User
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button type="submit">Create User</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

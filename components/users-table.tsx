@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo,useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,74 +25,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { MoreHorizontal, Edit, UserX, UserCheck, ChevronLeft, ChevronRight, Trash2, User } from "lucide-react"
-
+import { getUsers, type UserInterface } from "@/data/users"
 // Mock data for demonstration
-const mockUsers = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@inharmony.com",
-    role: "Admin",
-    status: "Active",
-    lastLogin: "2024-01-15 14:30",
-    avatar: "/placeholder.svg?height=32&width=32",
-  },
-  {
-    id: "2",
-    name: "Mike Chen",
-    email: "mike.chen@email.com",
-    role: "User",
-    status: "Active",
-    lastLogin: "2024-01-15 09:15",
-  },
-  {
-    id: "3",
-    name: "Emma Davis",
-    email: "emma.davis@email.com",
-    role: "User",
-    status: "Active",
-    lastLogin: "2024-01-14 16:45",
-  },
-  {
-    id: "4",
-    name: "James Wilson",
-    email: "james.wilson@email.com",
-    role: "User",
-    status: "Inactive",
-    lastLogin: "2024-01-10 11:20",
-  },
-  {
-    id: "5",
-    name: "Lisa Anderson",
-    email: "lisa.anderson@email.com",
-    role: "User",
-    status: "Active",
-    lastLogin: "2024-01-15 13:10",
-  },
-  // Add more mock users to demonstrate pagination
-  ...Array.from({ length: 25 }, (_, i) => ({
-    id: `${i + 6}`,
-    name: `User ${i + 6}`,
-    email: `user${i + 6}@email.com`,
-    role: "User" as const,
-    status: Math.random() > 0.3 ? ("Active" as const) : ("Inactive" as const),
-    lastLogin: `2024-01-${Math.floor(Math.random() * 15) + 1} ${Math.floor(Math.random() * 24)}:${Math.floor(
-      Math.random() * 60,
-    )
-      .toString()
-      .padStart(2, "0")}`,
-  })),
-]
-
-interface UserInterface {
-  id: string
-  name: string
-  email: string
-  role: "Admin" | "User"
-  status: "Active" | "Inactive"
-  lastLogin: string
-  avatar?: string
-}
 
 interface UsersTableProps {
   searchQuery: string
@@ -104,15 +38,21 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
   const [userToDelete, setUserToDelete] = useState<UserInterface | null>(null)
   const [userToActivate, setUserToActivate] = useState<UserInterface | null>(null)
   const usersPerPage = 20
+  const [users, setUsers] = useState<UserInterface[]>([])
 
+  useEffect(() => {
+    const allUsers = getUsers()
+    setUsers(allUsers)
+  }, [])
   // Filter users based on search query
   const filteredUsers = useMemo(() => {
-    return mockUsers.filter(
+    return users.filter(
       (user) =>
         user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.email.toLowerCase().includes(searchQuery.toLowerCase()),
     )
-  }, [searchQuery])
+  }, [searchQuery, users])
+
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage)

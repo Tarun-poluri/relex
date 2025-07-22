@@ -25,94 +25,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { MoreHorizontal, Edit, Trash2, ChevronLeft, ChevronRight, MapPin, Phone, Mail } from "lucide-react"
-
-interface Owner {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  status: "active" | "inactive"
-  locations: {
-    id: string
-    name: string
-    deviceIds: string[]
-  }[]
-  createdAt: string
-}
+import { type Owner, owners } from "@/data/owners"
 
 // Mock data for demonstration
 const mockOwners: Owner[] = [
-  {
-    id: "1",
-    firstName: "John",
-    lastName: "Smith",
-    email: "john.smith@email.com",
-    phone: "+1 (555) 123-4567",
-    status: "active",
-    locations: [
-      {
-        id: "loc1",
-        name: "Main Office",
-        deviceIds: ["RFB-001", "HH-PRO-2024"],
-      },
-      {
-        id: "loc2",
-        name: "Home Studio",
-        deviceIds: ["VM-2024"],
-      },
-    ],
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    firstName: "Sarah",
-    lastName: "Johnson",
-    email: "sarah.johnson@email.com",
-    phone: "+1 (555) 987-6543",
-    status: "active",
-    locations: [
-      {
-        id: "loc3",
-        name: "Wellness Center",
-        deviceIds: ["RFB-001", "MC-SET-01"],
-      },
-    ],
-    createdAt: "2024-01-12",
-  },
-  {
-    id: "3",
-    firstName: "Mike",
-    lastName: "Chen",
-    email: "mike.chen@email.com",
-    phone: "+1 (555) 456-7890",
-    status: "inactive",
-    locations: [
-      {
-        id: "loc4",
-        name: "Therapy Room",
-        deviceIds: ["HH-PRO-2024"],
-      },
-    ],
-    createdAt: "2024-01-10",
-  },
-  // Add more mock owners
-  ...Array.from({ length: 12 }, (_, i) => ({
-    id: `${i + 4}`,
-    firstName: `Owner${i + 4}`,
-    lastName: `Last${i + 4}`,
-    email: `owner${i + 4}@email.com`,
-    phone: `+1 (555) ${String(Math.floor(Math.random() * 900) + 100)}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-    status: Math.random() > 0.3 ? ("active" as const) : ("inactive" as const),
-    locations: [
-      {
-        id: `loc${i + 5}`,
-        name: `Location ${i + 1}`,
-        deviceIds: [`DEV-${String(i + 1).padStart(3, "0")}`],
-      },
-    ],
-    createdAt: `2024-01-${String(Math.floor(Math.random() * 28) + 1).padStart(2, "0")}`,
-  })),
+  ...owners,
 ]
 
 interface OwnersTableProps {

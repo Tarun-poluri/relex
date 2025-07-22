@@ -23,88 +23,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Play, Pause, Volume2, MoreHorizontal, Edit, Trash2, Music } from "lucide-react"
-
-interface MusicMeditation {
-  id: string
-  title: string
-  duration: string
-  category: "relaxation" | "healing" | "meditation" | "sleep"
-  artist: string
-  description: string
-  thumbnail: string
-  audioUrl: string
-  durationMinutes: number
-}
+import { musicMeditations, type MusicMeditation } from '@/data/music-meditations'
 
 // Mock data for music meditations
 const mockMeditations: MusicMeditation[] = [
-  {
-    id: "1",
-    title: "Releasing Anger",
-    duration: "11:00",
-    category: "relaxation",
-    artist: "RelaxFlow Studio",
-    description: "A soothing meditation to help release anger and find inner peace",
-    thumbnail: "/placeholder.svg?height=200&width=200",
-    audioUrl: "/audio/sample1.mp3",
-    durationMinutes: 11,
-  },
-  {
-    id: "2",
-    title: "174 Hz My Body is Aligned",
-    duration: "11:11",
-    category: "healing",
-    artist: "Frequency Healing",
-    description: "Healing frequency meditation for body alignment",
-    thumbnail: "/placeholder.svg?height=200&width=200",
-    audioUrl: "/audio/sample2.mp3",
-    durationMinutes: 11,
-  },
-  {
-    id: "3",
-    title: "285 Hz I am Rejuvenated",
-    duration: "11:11",
-    category: "healing",
-    artist: "Frequency Healing",
-    description: "Rejuvenating frequency meditation for energy restoration",
-    thumbnail: "/placeholder.svg?height=200&width=200",
-    audioUrl: "/audio/sample3.mp3",
-    durationMinutes: 11,
-  },
-  {
-    id: "4",
-    title: "Deep Sleep Journey",
-    duration: "25:30",
-    category: "sleep",
-    artist: "Sleep Sounds",
-    description: "A gentle journey into deep, restful sleep",
-    thumbnail: "/placeholder.svg?height=200&width=200",
-    audioUrl: "/audio/sample4.mp3",
-    durationMinutes: 25,
-  },
-  {
-    id: "5",
-    title: "Morning Mindfulness",
-    duration: "8:45",
-    category: "meditation",
-    artist: "Mindful Moments",
-    description: "Start your day with mindful awareness",
-    thumbnail: "/placeholder.svg?height=200&width=200",
-    audioUrl: "/audio/sample5.mp3",
-    durationMinutes: 8,
-  },
-  {
-    id: "6",
-    title: "Ocean Waves Relaxation",
-    duration: "15:20",
-    category: "relaxation",
-    artist: "Nature Sounds",
-    description: "Relax with the soothing sounds of ocean waves",
-    thumbnail: "/placeholder.svg?height=200&width=200",
-    audioUrl: "/audio/sample6.mp3",
-    durationMinutes: 15,
-  },
-  // Add more mock data to demonstrate grid
+
+  ...musicMeditations,//static data from music-meditations
+  
   ...Array.from({ length: 6 }, (_, i) => ({
     id: `${i + 7}`,
     title: `Meditation ${i + 7}`,
