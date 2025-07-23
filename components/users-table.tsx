@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo,useEffect } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,8 +25,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { MoreHorizontal, Edit, UserX, UserCheck, ChevronLeft, ChevronRight, Trash2, User } from "lucide-react"
-import { getUsers, type UserInterface } from "@/data/users"
-// Mock data for demonstration
+import { getUsers, updateUser, deleteUser, type UserInterface } from "@/data/users"
+import { CreateUserDialog } from "@/components/create-user-dialog"
+import { ProfileDialog } from "@/components/profile-dialog"
 
 interface UsersTableProps {
   searchQuery: string
@@ -37,62 +38,112 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
   const [userToDeactivate, setUserToDeactivate] = useState<UserInterface | null>(null)
   const [userToDelete, setUserToDelete] = useState<UserInterface | null>(null)
   const [userToActivate, setUserToActivate] = useState<UserInterface | null>(null)
-  const usersPerPage = 20
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [userToEdit, setUserToEdit] = useState<UserInterface | null>(null)
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false)
+  const [userToView, setUserToView] = useState<UserInterface | null>(null)
   const [users, setUsers] = useState<UserInterface[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const usersPerPage = 10
 
   useEffect(() => {
-    const allUsers = getUsers()
-    setUsers(allUsers)
+    const fetchUsers = async () => {
+      setIsLoading(true)
+      try {
+        const users = await getUsers()
+        setUsers(users)
+      } catch (error) {
+        console.error("Error fetching users:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchUsers()
   }, [])
-  // Filter users based on search query
+
   const filteredUsers = useMemo(() => {
     return users.filter(
       (user) =>
         user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()),
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
     )
   }, [searchQuery, users])
 
-
-  // Calculate pagination
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage)
   const startIndex = (currentPage - 1) * usersPerPage
   const endIndex = startIndex + usersPerPage
   const currentUsers = filteredUsers.slice(startIndex, endIndex)
 
+  const handleEditUser = (user: UserInterface) => {
+    setUserToEdit(user)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleViewProfile = (user: UserInterface) => {
+    setUserToView(user)
+    setIsProfileDialogOpen(true)
+  }
+
   const handleDeactivateUser = (user: UserInterface) => {
     setUserToDeactivate(user)
   }
 
-  const confirmDeactivation = () => {
+  const confirmDeactivation = async () => {
     if (userToDeactivate) {
-      // Here you would typically make an API call to deactivate the user
-      console.log("Deactivating user:", userToDeactivate.id)
-      setUserToDeactivate(null)
+      const updatedUser: UserInterface = { 
+        ...userToDeactivate, 
+        status: "Inactive",
+        lastLogin: new Date().toLocaleString()
+      };
+      const success = await updateUser(updatedUser);
+      if (success) {
+        setUsers(users.map(user => 
+          user.id === userToDeactivate.id ? updatedUser : user
+        ));
+        setCurrentPage(1);
+      }
+      setUserToDeactivate(null);
     }
-  }
+  };
 
   const handleDeleteUser = (user: UserInterface) => {
     setUserToDelete(user)
   }
 
-  const confirmDeletion = () => {
+  const confirmDeletion = async () => {
     if (userToDelete) {
-      console.log("Deleting user:", userToDelete.id)
-      setUserToDelete(null)
+      const success = await deleteUser(userToDelete.id);
+      if (success) {
+        setUsers(users.filter(user => user.id !== userToDelete.id));
+        // Reset to first page after deletion if needed
+        if (currentPage > 1 && users.length % usersPerPage === 1) {
+          setCurrentPage(currentPage - 1);
+        }
+      }
+      setUserToDelete(null);
     }
-  }
+  };
 
   const handleActivateUser = (user: UserInterface) => {
     setUserToActivate(user)
   }
 
-  const confirmActivation = () => {
+  const confirmActivation = async () => {
     if (userToActivate) {
-      console.log("Activating user:", userToActivate.id)
-      setUserToActivate(null)
+      const updatedUser: UserInterface = { 
+        ...userToActivate, 
+        status: "Active", // Explicitly set to "Active"
+        lastLogin: new Date().toLocaleString()
+      };
+      const success = await updateUser(updatedUser);
+      if (success) {
+        setUsers(users.map(user => 
+          user.id === userToActivate.id ? updatedUser : user
+        ));
+      }
+      setUserToActivate(null);
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
     return <Badge variant={status === "Active" ? "default" : "secondary"}>{status}</Badge>
@@ -153,11 +204,11 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditUser(user)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit User
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewProfile(user)}>
                           <User className="mr-2 h-4 w-4" />
                           View Profile
                         </DropdownMenuItem>
@@ -204,7 +255,18 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
           </Button>
           <div className="flex items-center gap-1">
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const pageNumber = i + 1
+              let pageNumber;
+              // Show pages around current page
+              if (totalPages <= 5) {
+                pageNumber = i + 1;
+              } else if (currentPage <= 3) {
+                pageNumber = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNumber = totalPages - 4 + i;
+              } else {
+                pageNumber = currentPage - 2 + i;
+              }
+
               return (
                 <Button
                   key={pageNumber}
@@ -215,8 +277,21 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
                 >
                   {pageNumber}
                 </Button>
-              )
+              );
             })}
+            {totalPages > 5 && currentPage < totalPages - 2 && (
+              <span className="px-2">...</span>
+            )}
+            {totalPages > 5 && currentPage < totalPages - 2 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                className="w-8"
+              >
+                {totalPages}
+              </Button>
+            )}
           </div>
           <Button
             variant="outline"
@@ -230,7 +305,7 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
         </div>
       </div>
 
-      {/* Deactivation Confirmation Dialog */}
+      {/* Confirmation Dialogs */}
       <AlertDialog open={!!userToDeactivate} onOpenChange={() => setUserToDeactivate(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -248,6 +323,7 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -265,13 +341,13 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       <AlertDialog open={!!userToActivate} onOpenChange={() => setUserToActivate(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Activate User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to activate {userToActivate?.name}? This will restore their access to the RelaxFlow
-              platform.
+              Are you sure you want to activate {userToActivate?.name}? This will restore their access to the platform.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -282,6 +358,27 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit User Dialog */}
+      <CreateUserDialog 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen}
+        userToEdit={userToEdit}
+        onUserUpdated={() => {
+          const fetchUsers = async () => {
+            const users = await getUsers()
+            setUsers(users)
+          }
+          fetchUsers()
+        }}
+      />
+
+      {/* Profile View Dialog */}
+      <ProfileDialog 
+        user={userToView}
+        open={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+      />
     </>
   )
 }

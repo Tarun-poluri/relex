@@ -8,62 +8,73 @@ export interface UserInterface {
   avatar?: string
 }
 
-export const defaultUsers: UserInterface[] = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@inharmony.com",
-    role: "Admin",
-    status: "Active",
-    lastLogin: "2024-01-15 14:30",
-    avatar: "/placeholder.svg?height=32&width=32",
-  },
-  {
-    id: "2",
-    name: "Mike Chen",
-    email: "mike.chen@email.com",
-    role: "User",
-    status: "Active",
-    lastLogin: "2024-01-15 09:15",
-  },
-  {
-    id: "3",
-    name: "Emma Davis",
-    email: "emma.davis@email.com",
-    role: "User",
-    status: "Active",
-    lastLogin: "2024-01-14 16:45",
-  },
-  {
-    id: "4",
-    name: "James Wilson",
-    email: "james.wilson@email.com",
-    role: "User",
-    status: "Inactive",
-    lastLogin: "2024-01-10 11:20",
-  },
-  {
-    id: "5",
-    name: "Lisa Anderson",
-    email: "lisa.anderson@email.com",
-    role: "User",
-    status: "Active",
-    lastLogin: "2024-01-15 13:10",
-  },
-  
-]
+export const defaultUsers: UserInterface[] = []
 
-export const getUsers = (): UserInterface[] => {
-  if (typeof window !== "undefined") {
-    const stored = localStorage.getItem("users")
-    if (stored) return JSON.parse(stored)
-    localStorage.setItem("users", JSON.stringify(defaultUsers))
+export const getUsers = async (): Promise<UserInterface[]> => {
+  try {
+    const response = await fetch('/api/users');
+    if (!response.ok) throw new Error('Failed to fetch users');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return defaultUsers;
   }
-  return defaultUsers
 }
 
-export const saveUsers = (users: UserInterface[]) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("users", JSON.stringify(users))
+export const saveUsers = async (users: UserInterface[]): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(users),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error saving users:', error);
+    return false;
+  }
+}
+
+export const updateUser = async (user: UserInterface): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/users', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(user),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return false;
+  }
+}
+
+export const deleteUser = async (id: string): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/users', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return false;
   }
 }

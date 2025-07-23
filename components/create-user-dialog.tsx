@@ -1,26 +1,28 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef,useEffect } from "react"
 import SimpleReactValidator from "simple-react-validator"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { getUsers, saveUsers } from "@/data/users"
-
+import { getUsers, saveUsers ,updateUser} from "@/data/users"
+import type { UserInterface } from "@/data/users"
 
 interface CreateUserDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  userToEdit?: UserInterface | null
+  onUserUpdated?: () => void
 }
 
-export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) {
+export function CreateUserDialog({ open, onOpenChange , userToEdit, onUserUpdated}: CreateUserDialogProps) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     role: "User",
-  })
+  });
 
   const [forceUpdate, setForceUpdate] = useState(false)
   const validator = useRef(
@@ -28,6 +30,24 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
       autoForceUpdate: { forceUpdate: () => setForceUpdate(!forceUpdate) },
     })
   )
+  useEffect(() => {
+    if (userToEdit) {
+      const nameParts = userToEdit.name.split(" ");
+      setFormData({
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+        email: userToEdit.email || "",
+        role: userToEdit.role || "User",
+      });
+    } else {
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        role: "User",
+      });
+    }
+  }, [userToEdit, open]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target
@@ -39,44 +59,69 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
   }
 
   const handleClose = () => {
-    setFormData({ firstName: "", lastName: "", email: "", role: "User" })
-    onOpenChange(false)
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (validator.current.allValid()) {
-      const currentUsers = getUsers()
-      const newId = String(Math.max(...currentUsers.map((u) => parseInt(u.id))) + 1)
-
-      const newUser = {
-        id: newId,
-        name: `${formData.firstName} ${formData.lastName}`,
-        email: formData.email,
-        role: formData.role as "Admin" | "User",
-        status: "Active" as const,
-        lastLogin: new Date().toLocaleString(),
-        avatar: "/placeholder.svg",
-      }
-
-      const updatedUsers = [...currentUsers, newUser]
-      saveUsers(updatedUsers)
-
-      handleClose()
-    } else {
-      validator.current.showMessages()
-      setForceUpdate(!forceUpdate)
+    setFormData({ firstName: "", lastName: "", email: "", role: "User" });
+    onOpenChange(false);
+    if (userToEdit && onUserUpdated) {
+      onUserUpdated();
     }
-  }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validator.current.allValid()) {
+      try {
+        if (userToEdit) {
+          // Update existing user
+          const updatedUser = {
+            ...userToEdit,
+            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            email: formData.email,
+            role: formData.role as "Admin" | "User",
+            lastLogin: new Date().toLocaleString(), // Update last login time
+          };
+          
+          const success = await updateUser(updatedUser);
+          if (success && onUserUpdated) {
+            onUserUpdated();
+          }
+        } else {
+          // Create new user
+          const currentUsers = await getUsers();
+          const newId = String(Math.max(0, ...currentUsers.map(u => parseInt(u.id))) + 1);
+          const newUser = {
+            id: newId,
+            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            email: formData.email,
+            role: formData.role as "Admin" | "User",
+            status: "Active" as const,
+            lastLogin: new Date().toLocaleString(),
+            avatar: "/placeholder.svg",
+          };
+          
+          await saveUsers([...currentUsers, newUser]);
+        }
+        
+        handleClose();
+      } catch (error) {
+        console.error("Error saving user:", error);
+      }
+    } else {
+      validator.current.showMessages();
+      setForceUpdate(!forceUpdate);
+    }
+  };
 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New User</DialogTitle>
-          <DialogDescription>Add a new user to the RelaxFlow platform.</DialogDescription>
+          <DialogTitle>{userToEdit ? "Edit User" : "Create New User"}</DialogTitle>
+          <DialogDescription>
+            {userToEdit ? "Update user information" : "Add a new user to the RelaxFlow platform"}
+          </DialogDescription>
         </DialogHeader>
+
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
@@ -139,7 +184,7 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button type="submit">Create User</Button>
+            <Button type="submit">{userToEdit ? "Update User" : "Create User"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
