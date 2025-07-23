@@ -1,0 +1,179 @@
+# MDC Error Logging Rules - Next.js & TypeScript
+
+## Overview
+
+This document defines standardized rules and best practices for error logging in Next.js applications written in TypeScript. Following these guidelines ensures consistent, informative, and actionable error logs across the entire application.
+
+## Log Levels
+
+- **DEBUG**: Fine-grained development information (disabled in production)
+- **INFO**: General operational information about system activities
+- **WARN**: Warning conditions that might lead to errors
+- **ERROR**: Error conditions disrupting operation of a specific function
+- **CRITICAL**: Critical conditions affecting multiple components
+- **FATAL**: System cannot continue operation
+
+## Error Categories
+
+### API Errors
+- Use for all external API communication issues
+- Always include the endpoint, HTTP method, and status code
+- Exclude sensitive request/response data
+- Example: "Failed to fetch user data from /api/users [GET: 503]"
+
+### Authentication Errors
+- Use for authentication and authorization failures
+- Never log passwords or tokens
+- Include the authentication method and failure reason
+- Example: "JWT validation failed: token expired"
+
+### Database Errors
+- Use for all database operation failures
+- Include the operation type and affected collection/table
+- Exclude raw queries and sensitive data
+- Example: "Database insertion failed: Users collection"
+
+### Validation Errors
+- Use for input validation failures
+- Include the validation rule that failed
+- Reference the component/page where validation occurred
+- Example: "Email validation failed in SignupForm"
+
+### Rendering Errors
+- Use for component rendering failures
+- Include the component name and rendering phase
+- Example: "Failed to render ProductCard during useEffect"
+
+### SSR Errors
+- Use for Next.js server-side rendering failures
+- Include the affected page and data fetching method
+- Example: "getServerSideProps failed in [slug].tsx"
+
+### Client-Side Errors
+- Use for client-only runtime errors
+- Include browser information when available
+- Example: "Uncaught TypeError in Chrome 98"
+
+### Configuration Errors
+- Use for environment and configuration issues
+- Include the missing or invalid configuration key
+- Example: "Missing required environment variable: API_KEY"
+
+## Contextual Information
+
+### Always Include
+- **Timestamp**: ISO 8601 format with timezone
+- **Request ID**: Unique identifier for tracking issues across logs
+- **User context**: User ID (if authenticated)
+- **Environment**: development, staging, production
+- **Component path**: File or component where error occurred
+- **Stack trace**: For all ERROR level and above
+
+### Never Include
+- Passwords or authentication tokens
+- Complete request/response bodies
+- Personal identifying information (PII)
+- Sensitive business data
+- Raw SQL queries
+
+## Formatting Rules
+
+### Console Logs
+- Use color-coding based on severity
+- Include timestamp, level, category, and message
+- Use structured format: `[timestamp] [level] [category] message`
+
+### File Logs
+- One error per line
+- Include all contextual information
+- Use pipe-delimited format for easy parsing
+- Example: `2023-04-09T14:30:00Z | ERROR | API | req_789 | Failed to fetch user data`
+
+### Service Logs (External)
+- Use structured JSON format
+- Include all available metadata fields
+- Group related errors by request ID
+- Enable batching where appropriate
+
+## Handling Patterns
+
+### API Routes
+- Wrap all route handlers with error logging middleware
+- Return standardized error responses with request IDs
+- Log at ERROR level for 5xx responses
+- Log at WARN level for 4xx responses
+
+### Server-Side Rendering
+- Use try/catch in getServerSideProps, getStaticProps
+- Log errors before falling back to error pages
+- Include page path and query parameters
+
+### Client Components
+- Implement error boundaries around major sections
+- Log client errors to server when possible
+- Fall back gracefully with user-friendly messages
+
+### Global Error Handling
+- Implement unhandledRejection and uncaughtException handlers
+- Log at FATAL level for unhandled errors
+- Include full process state information
+
+## Implementation Guidance
+
+### TypeScript Interfaces
+- Define standard error interfaces with required fields
+- Use discriminated unions for different error types
+- Example:
+  ```typescript
+  interface BaseError {
+    message: string;
+    code: string;
+    timestamp: string;
+    requestId: string;
+  }
+  
+  interface ApiError extends BaseError {
+    type: 'api';
+    endpoint: string;
+    method: string;
+    statusCode: number;
+  }
+  ```
+
+### Logging Service Integration
+- Prefer structured logging services over raw text logs
+- Implement log buffering for high-volume applications
+- Set up alerts for ERROR and above log levels
+- Configure log rotation for file-based logs
+
+## Recovery Strategies
+
+### Automatic Retry
+- Implement exponential backoff for transient errors
+- Log each retry attempt at INFO level
+- Set maximum retry limits
+
+### Fallback Content
+- Show fallback UI when components fail
+- Log the use of fallback at WARN level
+- Include original error details
+
+### Circuit Breaking
+- Implement circuit breakers for unreliable dependencies
+- Log circuit state changes
+- Include failure rate statistics
+
+## Development Practices
+
+- Review error logs during code reviews
+- Simulate error conditions in testing
+- Maintain an error catalog for known issues
+- Periodically review and improve error messages
+
+## Monitoring and Alerts
+
+- Set up real-time alerts for CRITICAL and FATAL errors
+- Configure daily summaries of ERROR level logs
+- Track error trends over time
+- Link logs to issue tracking system
+

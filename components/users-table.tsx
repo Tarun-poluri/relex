@@ -1,6 +1,9 @@
+// users-table.tsx
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { fetchUsers, updateUser, removeUser } from "@/store/actions/userActions"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,15 +28,17 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { MoreHorizontal, Edit, UserX, UserCheck, ChevronLeft, ChevronRight, Trash2, User } from "lucide-react"
-import { getUsers, updateUser, deleteUser, type UserInterface } from "@/data/users"
 import { CreateUserDialog } from "@/components/create-user-dialog"
 import { ProfileDialog } from "@/components/profile-dialog"
+import { UserInterface } from "@/app/types/userTypes"
 
 interface UsersTableProps {
   searchQuery: string
 }
 
 export function UsersTable({ searchQuery }: UsersTableProps) {
+  const dispatch = useAppDispatch()
+  const { users, isLoading } = useAppSelector((state) => state.users)
   const [currentPage, setCurrentPage] = useState(1)
   const [userToDeactivate, setUserToDeactivate] = useState<UserInterface | null>(null)
   const [userToDelete, setUserToDelete] = useState<UserInterface | null>(null)
@@ -42,24 +47,12 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
   const [userToEdit, setUserToEdit] = useState<UserInterface | null>(null)
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false)
   const [userToView, setUserToView] = useState<UserInterface | null>(null)
-  const [users, setUsers] = useState<UserInterface[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  
   const usersPerPage = 10
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      setIsLoading(true)
-      try {
-        const users = await getUsers()
-        setUsers(users)
-      } catch (error) {
-        console.error("Error fetching users:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchUsers()
-  }, [])
+    dispatch(fetchUsers())
+  }, [dispatch])
 
   const filteredUsers = useMemo(() => {
     return users.filter(
@@ -90,21 +83,15 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
 
   const confirmDeactivation = async () => {
     if (userToDeactivate) {
-      const updatedUser: UserInterface = { 
+      const updatedUser = { 
         ...userToDeactivate, 
         status: "Inactive",
         lastLogin: new Date().toLocaleString()
-      };
-      const success = await updateUser(updatedUser);
-      if (success) {
-        setUsers(users.map(user => 
-          user.id === userToDeactivate.id ? updatedUser : user
-        ));
-        setCurrentPage(1);
       }
-      setUserToDeactivate(null);
+      await dispatch(updateUser(updatedUser))
+      setUserToDeactivate(null)
     }
-  };
+  }
 
   const handleDeleteUser = (user: UserInterface) => {
     setUserToDelete(user)
@@ -112,17 +99,14 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
 
   const confirmDeletion = async () => {
     if (userToDelete) {
-      const success = await deleteUser(userToDelete.id);
-      if (success) {
-        setUsers(users.filter(user => user.id !== userToDelete.id));
-        // Reset to first page after deletion if needed
-        if (currentPage > 1 && users.length % usersPerPage === 1) {
-          setCurrentPage(currentPage - 1);
-        }
+      await dispatch(removeUser(userToDelete.id))
+      setUserToDelete(null)
+      // Reset to first page after deletion if needed
+      if (currentPage > 1 && users.length % usersPerPage === 1) {
+        setCurrentPage(currentPage - 1)
       }
-      setUserToDelete(null);
     }
-  };
+  }
 
   const handleActivateUser = (user: UserInterface) => {
     setUserToActivate(user)
@@ -130,20 +114,15 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
 
   const confirmActivation = async () => {
     if (userToActivate) {
-      const updatedUser: UserInterface = { 
+      const updatedUser = { 
         ...userToActivate, 
-        status: "Active", // Explicitly set to "Active"
+        status: "Active",
         lastLogin: new Date().toLocaleString()
-      };
-      const success = await updateUser(updatedUser);
-      if (success) {
-        setUsers(users.map(user => 
-          user.id === userToActivate.id ? updatedUser : user
-        ));
       }
-      setUserToActivate(null);
+      await dispatch(updateUser(updatedUser))
+      setUserToActivate(null)
     }
-  };
+  }
 
   const getStatusBadge = (status: string) => {
     return <Badge variant={status === "Active" ? "default" : "secondary"}>{status}</Badge>
@@ -174,65 +153,79 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                        <AvatarFallback>
-                          {user.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{user.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                  <TableCell>{getRoleBadge(user.role)}</TableCell>
-                  <TableCell>{getStatusBadge(user.status)}</TableCell>
-                  <TableCell className="text-muted-foreground">{user.lastLogin}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit User
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleViewProfile(user)}>
-                          <User className="mr-2 h-4 w-4" />
-                          View Profile
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {user.status === "Active" ? (
-                          <DropdownMenuItem className="text-red-600" onClick={() => handleDeactivateUser(user)}>
-                            <UserX className="mr-2 h-4 w-4" />
-                            Deactivate User
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem className="text-green-600" onClick={() => handleActivateUser(user)}>
-                            <UserCheck className="mr-2 h-4 w-4" />
-                            Activate User
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteUser(user)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete User
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-4">
+                    Loading users...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : currentUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-4">
+                    No users found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                          <AvatarFallback>
+                            {user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{user.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                    <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>{getStatusBadge(user.status)}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.lastLogin}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewProfile(user)}>
+                            <User className="mr-2 h-4 w-4" />
+                            View Profile
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {user.status === "Active" ? (
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeactivateUser(user)}>
+                              <UserX className="mr-2 h-4 w-4" />
+                              Deactivate User
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem className="text-green-600" onClick={() => handleActivateUser(user)}>
+                              <UserCheck className="mr-2 h-4 w-4" />
+                              Activate User
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteUser(user)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete User
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -255,16 +248,15 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
           </Button>
           <div className="flex items-center gap-1">
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNumber;
-              // Show pages around current page
+              let pageNumber
               if (totalPages <= 5) {
-                pageNumber = i + 1;
+                pageNumber = i + 1
               } else if (currentPage <= 3) {
-                pageNumber = i + 1;
+                pageNumber = i + 1
               } else if (currentPage >= totalPages - 2) {
-                pageNumber = totalPages - 4 + i;
+                pageNumber = totalPages - 4 + i
               } else {
-                pageNumber = currentPage - 2 + i;
+                pageNumber = currentPage - 2 + i
               }
 
               return (
@@ -277,7 +269,7 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
                 >
                   {pageNumber}
                 </Button>
-              );
+              )
             })}
             {totalPages > 5 && currentPage < totalPages - 2 && (
               <span className="px-2">...</span>
@@ -364,13 +356,7 @@ export function UsersTable({ searchQuery }: UsersTableProps) {
         open={isEditDialogOpen} 
         onOpenChange={setIsEditDialogOpen}
         userToEdit={userToEdit}
-        onUserUpdated={() => {
-          const fetchUsers = async () => {
-            const users = await getUsers()
-            setUsers(users)
-          }
-          fetchUsers()
-        }}
+        onUserUpdated={() => dispatch(fetchUsers())}
       />
 
       {/* Profile View Dialog */}

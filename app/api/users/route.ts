@@ -25,25 +25,7 @@ async function readUsers(): Promise<User[]> {
 
 const usersFilePath = path.join(process.cwd(), 'data', 'users.json');
 
-const defaultUsers: User[] = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@example.com",
-    role: "Admin",
-    status: "Active",
-    lastLogin: "2024-01-15 14:30",
-    avatar: "/placeholder.svg"
-  },
-  {
-    id: "2",
-    name: "Mike Chen",
-    email: "mike.chen@example.com",
-    role: "User",
-    status: "Active",
-    lastLogin: "2024-01-15 09:15"
-  }
-];
+const defaultUsers: User[] = [];
 
 export async function GET() {
   try {
