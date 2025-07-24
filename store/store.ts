@@ -2,11 +2,17 @@
 import { configureStore } from '@reduxjs/toolkit'
 import authReducer from '@/store/reducers/authReducer'
 import userReducer from '@/store/reducers/userReducer'
+import ownerReducer from '@/store/reducers/ownerReducer'
+import productReducer from '@/store/reducers/productReducer'
+import meditationReducer from '@/store/reducers/meditationReducer'
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    users: userReducer, // Ensure you import userReducer from the correct path
+    users: userReducer, 
+    owners: ownerReducer,
+    products: productReducer,
+    meditations: meditationReducer,
   },
 })
 

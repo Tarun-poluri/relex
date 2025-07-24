@@ -1,5 +1,23 @@
 [
   {
+    "id": "15",
+    "name": "ram kumar",
+    "email": "ram@gmail.com",
+    "role": "Admin",
+    "status": "Inactive",
+    "lastLogin": "24/07/2025, 16:04:38",
+    "avatar": "/placeholder.svg"
+  },
+  {
+    "id": "14",
+    "name": "kumar poluri",
+    "email": "tarun123@gmail.com",
+    "role": "User",
+    "status": "Active",
+    "lastLogin": "24/07/2025, 11:39:57",
+    "avatar": "/placeholder.svg"
+  },
+  {
     "id": "2",
     "name": "SaiTarun Poluri",
     "email": "poluritharun+stage09/04@bitcot.com",
@@ -32,7 +50,7 @@
     "email": "tarun.poluri55@gmail.com",
     "role": "Admin",
     "status": "Active",
-    "lastLogin": "23/07/2025, 11:33:00",
+    "lastLogin": "24/07/2025, 11:28:12",
     "avatar": "/placeholder.svg"
   },
   {
@@ -88,5 +106,14 @@
     "lastLogin": "23/07/2025, 18:41:04",
     "avatar": "/placeholder.svg",
     "id": "12"
+  },
+  {
+    "name": "SaiTarun Poluri",
+    "email": "poluritharun+stage09/04@bitcot.com",
+    "role": "User",
+    "status": "Active",
+    "lastLogin": "24/07/2025, 11:29:11",
+    "avatar": "/placeholder.svg",
+    "id": "13"
   }
 ]

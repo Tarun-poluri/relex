@@ -2,10 +2,9 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import SimpleReactValidator from "simple-react-validator" // Import SimpleReactValidator
 import Image from "next/image"
 import {
   Dialog,
@@ -21,33 +20,27 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Loader2, Upload, X, Play, Pause, Volume2 } from "lucide-react"
+import { useAppDispatch } from "@/store/hooks"
+import { createMeditation, updateMeditation, fetchMeditations } from "@/store/actions/meditationActions" // Corrected path
+import { MusicMeditation } from "@/app/types/meditationTypes"
 
-const addMeditationSchema = z.object({
-  title: z.string().min(2, "Title must be at least 2 characters").max(100, "Title must be less than 100 characters"),
-  duration: z.string({
-    required_error: "Please select a duration",
-  }),
-  category: z.string({
-    required_error: "Please select a category",
-  }),
-  artist: z
-    .string()
-    .min(2, "Artist name must be at least 2 characters")
-    .max(50, "Artist name must be less than 50 characters"),
-  description: z
-    .string()
-    .min(10, "Description must be at least 10 characters")
-    .max(500, "Description must be less than 500 characters"),
-})
-
-type AddMeditationFormValues = z.infer<typeof addMeditationSchema>
-
-interface AddMeditationDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+type MeditationFormValues = {
+  title: string
+  duration: string
+  category: "relaxation" | "healing" | "meditation" | "sleep" // Keep the union type for Select component values
+  artist: string
+  description: string
+  thumbnail: string // Now part of form values for validation
+  audioUrl: string // Now part of form values for validation
 }
 
-export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogProps) {
+interface MeditationFormDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  meditationToEdit?: MusicMeditation | null;
+}
+
+export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: MeditationFormDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(null)
   const [selectedAudio, setSelectedAudio] = useState<string | null>(null)
@@ -55,39 +48,115 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const audioInputRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
+  const dispatch = useAppDispatch();
+  const [forceUpdate, setForceUpdate] = useState(false); // State to force re-render for validation messages
 
-  const form = useForm<AddMeditationFormValues>({
-    resolver: zodResolver(addMeditationSchema),
+  const isEditing = !!meditationToEdit;
+
+  // Initialize SimpleReactValidator
+  const validator = useRef(new SimpleReactValidator({
+    autoForceUpdate: { forceUpdate: () => setForceUpdate(!forceUpdate) },
+    messages: {
+      required: 'This field is required',
+      min: 'Must be at least :min characters',
+      max: 'Must be less than :max characters',
+      email: 'Please enter a valid email address',
+      regex: 'Invalid format',
+      alpha_num_dash_dot: 'Only alphanumeric, dashes, and dots allowed'
+    }
+  }));
+
+  const form = useForm<MeditationFormValues>({
+    // No resolver needed for SimpleReactValidator
     defaultValues: {
       title: "",
       duration: "",
-      category: "",
+      category: "relaxation",
       artist: "",
       description: "",
+      thumbnail: "/placeholder.svg", // Default for new, will be overwritten by selectedThumbnail
+      audioUrl: "", // Default for new, will be overwritten by selectedAudio
     },
   })
 
-  const onSubmit = async (data: AddMeditationFormValues) => {
-    setIsLoading(true)
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      console.log("Creating meditation:", {
-        ...data,
-        thumbnail: selectedThumbnail,
-        audio: selectedAudio,
-      })
+  useEffect(() => {
+    if (open) {
+      if (isEditing && meditationToEdit) {
+        form.reset({
+          title: meditationToEdit.title,
+          duration: meditationToEdit.duration,
+          category: meditationToEdit.category,
+          artist: meditationToEdit.artist,
+          description: meditationToEdit.description,
+          thumbnail: meditationToEdit.thumbnail,
+          audioUrl: meditationToEdit.audioUrl,
+        });
+        setSelectedThumbnail(meditationToEdit.thumbnail);
+        setSelectedAudio(meditationToEdit.audioUrl);
+      } else {
+        form.reset({
+          title: "",
+          duration: "",
+          category: "relaxation",
+          artist: "",
+          description: "",
+          thumbnail: "/placeholder.svg",
+          audioUrl: "",
+        });
+        setSelectedThumbnail(null);
+        setSelectedAudio(null);
+      }
+      setIsAudioPlaying(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      // Clear validator messages when dialog opens/resets
+      validator.current.hideMessages();
+    }
+  }, [open, meditationToEdit, isEditing, form]);
 
-      // Reset form and close dialog
-      form.reset()
-      setSelectedThumbnail(null)
-      setSelectedAudio(null)
-      setIsAudioPlaying(false)
-      onOpenChange(false)
-    } catch (error) {
-      console.error("Error creating meditation:", error)
-    } finally {
-      setIsLoading(false)
+
+  const onSubmit = async (data: MeditationFormValues) => {
+    // Manually trigger validation check
+    if (validator.current.allValid()) {
+      setIsLoading(true)
+      try {
+        const commonData = {
+          title: data.title,
+          duration: data.duration,
+          durationMinutes: parseDurationToMinutes(data.duration),
+          category: data.category,
+          artist: data.artist,
+          description: data.description,
+          thumbnail: selectedThumbnail || "/placeholder.svg",
+          audioUrl: selectedAudio || "",
+        };
+
+        if (isEditing && meditationToEdit) {
+          const updatedMeditation: MusicMeditation = {
+            ...meditationToEdit,
+            ...commonData,
+          };
+          await dispatch(updateMeditation(updatedMeditation));
+        } else {
+          const newMeditation: Omit<MusicMeditation, 'id' | 'createdAt' | 'updatedAt'> = {
+            ...commonData,
+          };
+          await dispatch(createMeditation(newMeditation));
+        }
+
+        dispatch(fetchMeditations());
+        handleClose();
+      } catch (error) {
+        console.error("Error saving meditation:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    } else {
+      // Show validation messages if form is not valid
+      validator.current.showMessages();
+      setForceUpdate(!forceUpdate); // Force re-render to display messages
     }
   }
 
@@ -97,6 +166,7 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
       const reader = new FileReader()
       reader.onload = (e) => {
         setSelectedThumbnail(e.target?.result as string)
+        form.setValue("thumbnail", e.target?.result as string, { shouldValidate: true });
       }
       reader.readAsDataURL(file)
     }
@@ -109,6 +179,7 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
       reader.onload = (e) => {
         setSelectedAudio(e.target?.result as string)
         setIsAudioPlaying(false)
+        form.setValue("audioUrl", e.target?.result as string, { shouldValidate: true });
       }
       reader.readAsDataURL(file)
     }
@@ -116,6 +187,7 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
 
   const removeThumbnail = () => {
     setSelectedThumbnail(null)
+    form.setValue("thumbnail", "", { shouldValidate: true }); // Clear thumbnail value in form
     if (thumbnailInputRef.current) {
       thumbnailInputRef.current.value = ""
     }
@@ -124,6 +196,7 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
   const removeAudio = () => {
     setSelectedAudio(null)
     setIsAudioPlaying(false)
+    form.setValue("audioUrl", "", { shouldValidate: true });
     if (audioInputRef.current) {
       audioInputRef.current.value = ""
     }
@@ -134,7 +207,7 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
   }
 
   const toggleAudioPlayback = () => {
-    if (audioRef.current) {
+    if (audioRef.current && selectedAudio) {
       if (isAudioPlaying) {
         audioRef.current.pause()
         setIsAudioPlaying(false)
@@ -159,13 +232,24 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
     onOpenChange(false)
   }
 
+  const parseDurationToMinutes = (durationString: string): number => {
+    switch (durationString) {
+      case "less-than-15": return 10;
+      case "15-30": return 20;
+      case "30-60": return 45;
+      case "greater-than-60": return 75;
+      default: return 0;
+    }
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Meditation</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Meditation" : "Add New Meditation"}</DialogTitle>
           <DialogDescription>
-            Create a new music meditation for the RelaxFlow platform. Fill in all required fields below.
+            {isEditing ? "Update the details for this music meditation." : "Create a new music meditation for the RelaxFlow platform. Fill in all required fields below."}
           </DialogDescription>
         </DialogHeader>
 
@@ -182,6 +266,9 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                       <Input placeholder="Type here" {...field} />
                     </FormControl>
                     <FormMessage />
+                    <div className="text-red-500 text-xs mt-1">
+                      {validator.current.message('title', field.value, 'required|min:2|max:100')}
+                    </div>
                   </FormItem>
                 )}
               />
@@ -192,7 +279,7 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Duration *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select Duration" />
@@ -206,6 +293,9 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    <div className="text-red-500 text-xs mt-1">
+                      {validator.current.message('duration', field.value, 'required')}
+                    </div>
                   </FormItem>
                 )}
               />
@@ -218,7 +308,7 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Please select" />
@@ -232,6 +322,9 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    <div className="text-red-500 text-xs mt-1">
+                      {validator.current.message('category', field.value, 'required')}
+                    </div>
                   </FormItem>
                 )}
               />
@@ -246,6 +339,9 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                       <Input placeholder="Type here" {...field} />
                     </FormControl>
                     <FormMessage />
+                    <div className="text-red-500 text-xs mt-1">
+                      {validator.current.message('artist', field.value, 'required|min:2|max:50')}
+                    </div>
                   </FormItem>
                 )}
               />
@@ -261,12 +357,14 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                     <Textarea placeholder="Type here" className="min-h-[100px]" {...field} />
                   </FormControl>
                   <FormMessage />
+                  <div className="text-red-500 text-xs mt-1">
+                    {validator.current.message('description', field.value, 'required|min:10|max:500')}
+                  </div>
                 </FormItem>
               )}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Thumbnail Upload */}
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none">Thumbnail *</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
@@ -314,9 +412,11 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                     className="hidden"
                   />
                 </div>
+                <div className="text-red-500 text-xs mt-1">
+                  {validator.current.message('thumbnail', selectedThumbnail, 'required')}
+                </div>
               </div>
 
-              {/* Audio Upload */}
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none">Audio *</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
@@ -327,7 +427,6 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                       </div>
                       <div className="text-sm text-gray-600">Audio Added</div>
 
-                      {/* Audio Player Controls */}
                       <div className="flex items-center justify-center space-x-2 bg-gray-100 rounded-lg p-2">
                         <Button type="button" variant="ghost" size="sm" onClick={toggleAudioPlayback}>
                           {isAudioPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
@@ -381,6 +480,9 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                     className="hidden"
                   />
                 </div>
+                <div className="text-red-500 text-xs mt-1">
+                  {validator.current.message('audio', selectedAudio, 'required')}
+                </div>
               </div>
             </div>
 
@@ -394,7 +496,7 @@ export function AddMeditationDialog({ open, onOpenChange }: AddMeditationDialogP
                 className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submit
+                {isEditing ? "Save Changes" : "Submit"}
               </Button>
             </DialogFooter>
           </form>

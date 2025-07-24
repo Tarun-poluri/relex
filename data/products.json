@@ -1,0 +1,16 @@
+[
+  {
+    "name": "bitcot",
+    "deviceId": "122",
+    "description": "hiiiiiiiii",
+    "price": 0.01,
+    "stockQuantity": 1,
+    "category": "therapy",
+    "isActive": true,
+    "image": "/placeholder.svg",
+    "status": "Available",
+    "id": "2",
+    "createdAt": "2025-07-24T11:06:11.120Z",
+    "updatedAt": "2025-07-24T11:22:16.970Z"
+  }
+]

@@ -1,4 +1,3 @@
-// store/actions/userActions.ts
 import { getUsersApi, saveUsersApi, updateUserApi, deleteUserApi } from '../api/usersApi';
 import { AppDispatch } from '../store';
 
@@ -21,15 +20,18 @@ export const createUser = (user: any) => async (dispatch: AppDispatch) => {
     const maxId = Math.max(0, ...currentUsers.map((u: any) => parseInt(u.id)));
     const newId = String(maxId + 1);
     
+    // Create new user 
     const newUser = {
-      ...user,
       id: newId,
+      name: user.name,
+      email: user.email,
+      role: user.role,
       status: "Active",
       lastLogin: new Date().toLocaleString(),
       avatar: "/placeholder.svg",
     };
     
-    await saveUsersApi([...currentUsers, newUser]);
+    await saveUsersApi([newUser, ...currentUsers]);
     dispatch(fetchUsers());
     return { success: true };
   } catch (error) {
@@ -40,7 +42,17 @@ export const createUser = (user: any) => async (dispatch: AppDispatch) => {
 
 export const updateUser = (user: any) => async (dispatch: AppDispatch) => {
   try {
-    await updateUserApi(user);
+    const updatedUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      lastLogin: user.lastLogin,
+      avatar: user.avatar || "/placeholder.svg",
+    };
+    
+    await updateUserApi(updatedUser);
     dispatch(fetchUsers());
     return { success: true };
   } catch (error) {

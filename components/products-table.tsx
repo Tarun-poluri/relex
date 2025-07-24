@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Image from "next/image"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -25,12 +25,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { MoreHorizontal, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
-import { products , type Product } from "@/data/products"
-
-
-
-// Mock data for demonstration
-const mockProducts: Product[] = [...products]
+import { type ProductInterface } from "@/app/types/productTypes" // Use ProductInterface
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { fetchProducts, deleteProduct } from "@/store/actions/productActions" // Import actions
+import { CreateProductDialog } from "@/components/create-product-dialog" // Import the dialog
 
 interface ProductsTableProps {
   searchQuery: string
@@ -38,33 +36,52 @@ interface ProductsTableProps {
 }
 
 export function ProductsTable({ searchQuery, categoryFilter }: ProductsTableProps) {
+  const dispatch = useAppDispatch()
+  const { products, isLoading, error } = useAppSelector((state) => state.products)
+
   const [currentPage, setCurrentPage] = useState(1)
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+  const [productToDelete, setProductToDelete] = useState<ProductInterface | null>(null)
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false); // State for dialog open/close
+  const [productToEdit, setProductToEdit] = useState<ProductInterface | null>(null); // State for product being edited
+
   const productsPerPage = 10
 
-  // Filter products based on search query and category
+  // Fetch products on component mount
+  useEffect(() => {
+    dispatch(fetchProducts())
+  }, [dispatch])
+
   const filteredProducts = useMemo(() => {
-    return mockProducts.filter((product) => {
+    return products.filter((product: ProductInterface) => {
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
       return matchesSearch && matchesCategory
     })
-  }, [searchQuery, categoryFilter])
+  }, [searchQuery, categoryFilter, products]) // Depend on 'products' from Redux state
 
-  // Calculate pagination
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
   const startIndex = (currentPage - 1) * productsPerPage
   const endIndex = startIndex + productsPerPage
   const currentProducts = filteredProducts.slice(startIndex, endIndex)
 
-  const handleDeleteProduct = (product: Product) => {
+  const handleDeleteProduct = (product: ProductInterface) => {
     setProductToDelete(product)
   }
 
-  const confirmDeletion = () => {
+  const handleEditProduct = (product: ProductInterface) => {
+    setProductToEdit(product);
+    setIsFormDialogOpen(true);
+  };
+
+  const confirmDeletion = async () => {
     if (productToDelete) {
-      console.log("Deleting product:", productToDelete.id)
-      setProductToDelete(null)
+      try {
+        await dispatch(deleteProduct(productToDelete.id));
+        setProductToDelete(null);
+        dispatch(fetchProducts());
+      } catch (error) {
+        console.error("Failed to delete product:", error);
+      }
     }
   }
 
@@ -90,6 +107,14 @@ export function ProductsTable({ searchQuery, categoryFilter }: ProductsTableProp
     )
   }
 
+  if (isLoading) {
+    return <div className="text-center py-8">Loading products...</div>
+  }
+
+  if (error) {
+    return <div className="text-center py-8 text-red-500">Error: {error}</div>
+  }
+
   return (
     <>
       <Card>
@@ -107,70 +132,80 @@ export function ProductsTable({ searchQuery, categoryFilter }: ProductsTableProp
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="relative h-12 w-12 overflow-hidden rounded-lg border">
-                        <Image
-                          src={product.image || "/placeholder.svg"}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                          sizes="48px"
-                        />
-                      </div>
-                      <div>
-                        <div className="font-medium">{product.name}</div>
-                        {!product.isActive && (
-                          <Badge variant="outline" className="mt-1 text-xs">
-                            Inactive
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-xs">
-                    <div className="truncate text-muted-foreground">{product.description}</div>
-                  </TableCell>
-                  <TableCell className="font-medium">${product.price.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <span className={product.stockQuantity <= 5 ? "text-red-600 font-medium" : ""}>
-                      {product.stockQuantity}
-                    </span>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(product.status, product.stockQuantity)}</TableCell>
-                  <TableCell>{getCategoryBadge(product.category)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Product
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteProduct(product)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Product
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {currentProducts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-4">
+                    No products found matching your criteria.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                currentProducts.map((product: ProductInterface) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-12 w-12 overflow-hidden rounded-lg border">
+                          <Image
+                            src={product.image || "/placeholder.svg"}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                            onError={(e) => {
+                              e.currentTarget.src = "/placeholder.svg?height=60&width=60";
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <div className="font-medium">{product.name}</div>
+                          {!product.isActive && (
+                            <Badge variant="outline" className="mt-1 text-xs">
+                              Inactive
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <div className="truncate text-muted-foreground">{product.description}</div>
+                    </TableCell>
+                    <TableCell className="font-medium">${product.price.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <span className={product.stockQuantity <= 5 ? "text-red-600 font-medium" : ""}>
+                        {product.stockQuantity}
+                      </span>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(product.status, product.stockQuantity)}</TableCell>
+                    <TableCell>{getCategoryBadge(product.category)}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Product
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteProduct(product)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Product
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length}{" "}
@@ -187,7 +222,7 @@ export function ProductsTable({ searchQuery, categoryFilter }: ProductsTableProp
             Previous
           </Button>
           <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            {Array.from({ length: totalPages }, (_, i) => { // Changed to totalPages to show all page numbers
               const pageNumber = i + 1
               return (
                 <Button
@@ -214,7 +249,6 @@ export function ProductsTable({ searchQuery, categoryFilter }: ProductsTableProp
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!productToDelete} onOpenChange={() => setProductToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -232,6 +266,18 @@ export function ProductsTable({ searchQuery, categoryFilter }: ProductsTableProp
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Product Form Dialog (for Create/Edit) */}
+      <CreateProductDialog
+        open={isFormDialogOpen}
+        onOpenChange={(open) => {
+          setIsFormDialogOpen(open);
+          if (!open) {
+            setProductToEdit(null);
+          }
+        }}
+        productToEdit={productToEdit}
+      />
     </>
   )
 }

@@ -2,10 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
 import {
   Dialog,
   DialogContent,
@@ -22,8 +20,10 @@ import { Loader2, ArrowLeft, ArrowRight, Plus, X, Search, Check } from "lucide-r
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from "@/components/ui/command"
+import { useAppDispatch } from "@/store/hooks"
+import { createOwner, fetchOwners, updateOwner } from "@/store/actions/ownersactions"
+import { Owner, OwnerLocation } from "@/app/types/ownerTypes"
 
-// Available products for Device ID dropdown
 const availableProducts = [
   { id: "RFB-001", name: "RelaxFlow Sound Bowl Pro" },
   { id: "HH-PRO-2024", name: "Harmony Headphones" },
@@ -37,28 +37,20 @@ const availableProducts = [
   { id: "ZEN-001", name: "Zen Meditation Kit" },
 ]
 
-const ownerDetailsSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  phone: z.string().min(10, "Please enter a valid phone number"),
-})
+type OwnerDetailsFormValues = Pick<Owner, 'firstName' | 'lastName' | 'email' | 'phone'>;
 
-const locationSchema = z.object({
-  name: z.string().min(2, "Location name must be at least 2 characters"),
-  deviceIds: z.array(z.string()).min(1, "At least one device must be selected"),
-})
+interface LocationFormValue extends Omit<OwnerLocation, 'id'> {
+  id?: string;
+}
 
-const locationsSchema = z.object({
-  locations: z.array(locationSchema).min(1, "At least one location is required"),
-})
+interface LocationsFormValues {
+  locations: LocationFormValue[];
+}
 
-type OwnerDetailsFormValues = z.infer<typeof ownerDetailsSchema>
-type LocationsFormValues = z.infer<typeof locationsSchema>
-
-interface CreateOwnerDialogProps {
+interface OwnerFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  ownerToEdit?: Owner | null;
 }
 
 interface MultiSelectDeviceProps {
@@ -156,7 +148,6 @@ function MultiSelectDevice({
         </PopoverContent>
       </Popover>
 
-      {/* Selected devices display */}
       {selectedDevices.length > 0 && (
         <div className="space-y-2">
           <div className="text-sm text-muted-foreground">Selected devices ({selectedDevices.length}):</div>
@@ -183,14 +174,21 @@ function MultiSelectDevice({
   )
 }
 
-export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps) {
+export function OwnerFormDialog({ open, onOpenChange, ownerToEdit }: OwnerFormDialogProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [ownerDetails, setOwnerDetails] = useState<OwnerDetailsFormValues | null>(null)
+  const dispatch = useAppDispatch()
+
+  const isEditing = !!ownerToEdit;
 
   const ownerForm = useForm<OwnerDetailsFormValues>({
-    resolver: zodResolver(ownerDetailsSchema),
-    defaultValues: {
+    defaultValues: isEditing ? {
+      firstName: ownerToEdit.firstName,
+      lastName: ownerToEdit.lastName,
+      email: ownerToEdit.email,
+      phone: ownerToEdit.phone,
+    } : {
       firstName: "",
       lastName: "",
       email: "",
@@ -199,8 +197,13 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
   })
 
   const locationsForm = useForm<LocationsFormValues>({
-    resolver: zodResolver(locationsSchema),
-    defaultValues: {
+    defaultValues: isEditing ? {
+      locations: ownerToEdit.locations.map(loc => ({
+        id: loc.id,
+        name: loc.name,
+        deviceIds: loc.deviceIds,
+      })),
+    } : {
       locations: [
         {
           name: "",
@@ -210,6 +213,38 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
     },
   })
 
+  useEffect(() => {
+    if (open) {
+      if (isEditing && ownerToEdit) {
+        ownerForm.reset({
+          firstName: ownerToEdit.firstName,
+          lastName: ownerToEdit.lastName,
+          email: ownerToEdit.email,
+          phone: ownerToEdit.phone,
+        });
+        locationsForm.reset({
+          locations: ownerToEdit.locations.map(loc => ({
+            id: loc.id,
+            name: loc.name,
+            deviceIds: loc.deviceIds,
+          })),
+        });
+        setOwnerDetails({
+          firstName: ownerToEdit.firstName,
+          lastName: ownerToEdit.lastName,
+          email: ownerToEdit.email,
+          phone: ownerToEdit.phone,
+        });
+      } else {
+        ownerForm.reset();
+        locationsForm.reset();
+        setOwnerDetails(null);
+      }
+      setCurrentStep(1);
+    }
+  }, [open, ownerToEdit, isEditing, ownerForm, locationsForm]);
+
+
   const handleOwnerDetailsSubmit = (data: OwnerDetailsFormValues) => {
     setOwnerDetails(data)
     setCurrentStep(2)
@@ -217,19 +252,51 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
 
   const handleLocationsSubmit = async (data: LocationsFormValues) => {
     setIsLoading(true)
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      console.log("Creating owner:", { ...ownerDetails, ...data })
+    if (!ownerDetails) {
+      console.error("Owner details are missing.")
+      setIsLoading(false)
+      return
+    }
 
-      // Reset forms and close dialog
+    try {
+      if (isEditing && ownerToEdit) {
+        const updatedOwner: Owner = {
+          ...ownerToEdit,
+          firstName: ownerDetails.firstName,
+          lastName: ownerDetails.lastName,
+          email: ownerDetails.email,
+          phone: ownerDetails.phone,
+          locations: data.locations.map(loc => ({
+            id: loc.id || Math.random().toString(36).substr(2, 9),
+            name: loc.name,
+            deviceIds: loc.deviceIds,
+          })),
+        };
+        await dispatch(updateOwner(updatedOwner));
+      } else {
+        const newOwner: Omit<Owner, 'id' | 'status' | 'createdAt'> = {
+          firstName: ownerDetails.firstName,
+          lastName: ownerDetails.lastName,
+          email: ownerDetails.email,
+          phone: ownerDetails.phone,
+          locations: data.locations.map(loc => ({
+            id: Math.random().toString(36).substr(2, 9),
+            name: loc.name,
+            deviceIds: loc.deviceIds,
+          })),
+        };
+        await dispatch(createOwner(newOwner));
+      }
+      
+      dispatch(fetchOwners());
+
       ownerForm.reset()
       locationsForm.reset()
       setOwnerDetails(null)
       setCurrentStep(1)
       onOpenChange(false)
     } catch (error) {
-      console.error("Error creating owner:", error)
+      console.error("Error saving owner:", error)
     } finally {
       setIsLoading(false)
     }
@@ -281,9 +348,9 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Owner</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Owner" : "Create New Owner"}</DialogTitle>
           <DialogDescription>
-            Add a new device owner to the RelaxFlow platform. Complete all steps to create the owner profile.
+            {isEditing ? "Update the details for this device owner." : "Add a new device owner to the RelaxFlow platform. Complete all steps to create the owner profile."}
           </DialogDescription>
           <div className="space-y-2">
             <div className="flex justify-between text-sm text-muted-foreground">
@@ -303,6 +370,10 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
                   <FormField
                     control={ownerForm.control}
                     name="firstName"
+                    rules={{
+                      required: "First name is required",
+                      minLength: { value: 2, message: "First name must be at least 2 characters" }
+                    }}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>First Name</FormLabel>
@@ -317,6 +388,10 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
                   <FormField
                     control={ownerForm.control}
                     name="lastName"
+                    rules={{
+                      required: "Last name is required",
+                      minLength: { value: 2, message: "Last name must be at least 2 characters" }
+                    }}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
@@ -332,6 +407,13 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
                 <FormField
                   control={ownerForm.control}
                   name="email"
+                  rules={{
+                    required: "Email address is required",
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: "Please enter a valid email address"
+                    }
+                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Email Address</FormLabel>
@@ -346,16 +428,20 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
                 <FormField
                   control={ownerForm.control}
                   name="phone"
+                  rules={{
+                    required: "Phone number is required",
+                    minLength: { value: 10, message: "Phone number must be at least 10 characters" }
+                  }}
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter phone number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter phone number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
               </div>
 
               <DialogFooter>
@@ -403,6 +489,10 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
                     <FormField
                       control={locationsForm.control}
                       name={`locations.${locationIndex}.name`}
+                      rules={{
+                        required: "Location name is required",
+                        minLength: { value: 2, message: "Location name must be at least 2 characters" }
+                      }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Location Name</FormLabel>
@@ -417,6 +507,9 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
                     <FormField
                       control={locationsForm.control}
                       name={`locations.${locationIndex}.deviceIds`}
+                      rules={{
+                        validate: (value: string[]) => value.length > 0 || "At least one device must be selected"
+                      }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Device IDs</FormLabel>
@@ -442,7 +535,7 @@ export function CreateOwnerDialog({ open, onOpenChange }: CreateOwnerDialogProps
                 </Button>
                 <Button type="submit" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Owner
+                  {isEditing ? "Save Changes" : "Create Owner"}
                 </Button>
               </DialogFooter>
             </form>

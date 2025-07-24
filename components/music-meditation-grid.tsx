@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,46 +22,34 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Play, Pause, Volume2, MoreHorizontal, Edit, Trash2, Music } from "lucide-react"
-import { musicMeditations, type MusicMeditation } from '@/data/music-meditations'
-
-// Mock data for music meditations
-const mockMeditations: MusicMeditation[] = [
-
-  ...musicMeditations,//static data from music-meditations
-  
-  ...Array.from({ length: 6 }, (_, i) => ({
-    id: `${i + 7}`,
-    title: `Meditation ${i + 7}`,
-    duration: `${Math.floor(Math.random() * 20) + 5}:${Math.floor(Math.random() * 60)
-      .toString()
-      .padStart(2, "0")}`,
-    category: ["relaxation", "healing", "meditation", "sleep"][
-      Math.floor(Math.random() * 4)
-    ] as MusicMeditation["category"],
-    artist: "RelaxFlow Studio",
-    description: `Description for meditation ${i + 7}`,
-    thumbnail: "/placeholder.svg?height=200&width=200",
-    audioUrl: `/audio/sample${i + 7}.mp3`,
-    durationMinutes: Math.floor(Math.random() * 20) + 5,
-  })),
-]
+import { Play, Pause, Volume2, MoreHorizontal, Edit, Trash2, Music, Loader2 } from "lucide-react"
+import { type MusicMeditation } from '@/app/types/meditationTypes'
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { fetchMeditations, deleteMeditation } from "@/store/actions/meditationActions"
+import { AddMeditationDialog } from "@/components/add-meditation-dialog" // Import the dialog
 
 interface MusicMeditationGridProps {
   searchQuery: string
   durationFilter: string
   categoryFilter: string
+  onEditMeditation: (meditation: MusicMeditation) => void; // New prop for edit
 }
 
-export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilter }: MusicMeditationGridProps) {
+export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilter, onEditMeditation }: MusicMeditationGridProps) {
+  const dispatch = useAppDispatch()
+  const { meditations, isLoading, error } = useAppSelector((state) => state.meditations)
+
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [meditationToDelete, setMeditationToDelete] = useState<MusicMeditation | null>(null)
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({})
 
-  // Filter meditations based on search and filters
+  useEffect(() => {
+    dispatch(fetchMeditations());
+  }, [dispatch]);
+
   const filteredMeditations = useMemo(() => {
-    return mockMeditations.filter((meditation) => {
+    return meditations.filter((meditation) => {
       const matchesSearch =
         meditation.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         meditation.artist.toLowerCase().includes(searchQuery.toLowerCase())
@@ -76,64 +64,51 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
 
       return matchesSearch && matchesDuration && matchesCategory
     })
-  }, [searchQuery, durationFilter, categoryFilter])
+  }, [searchQuery, durationFilter, categoryFilter, meditations])
 
-  const handlePlayPause = (meditationId: string) => {
-    const audio = audioRefs.current[meditationId]
+  const handlePlayPause = (meditation: MusicMeditation) => {
+    let audio = audioRefs.current[meditation.id];
 
     if (!audio) {
-      // Create a dummy audio element for demo purposes
-      const dummyAudio = new Audio()
-      dummyAudio.addEventListener("ended", () => {
-        setCurrentlyPlaying(null)
-        setIsPlaying(false)
-      })
-      audioRefs.current[meditationId] = dummyAudio
+      audio = new Audio(meditation.audioUrl);
+      audio.addEventListener("ended", () => {
+        setCurrentlyPlaying(null);
+        setIsPlaying(false);
+      });
+      audioRefs.current[meditation.id] = audio;
     }
 
-    // Stop any currently playing audio
-    if (currentlyPlaying && currentlyPlaying !== meditationId) {
-      const currentAudio = audioRefs.current[currentlyPlaying]
+    if (currentlyPlaying && currentlyPlaying !== meditation.id) {
+      const currentAudio = audioRefs.current[currentlyPlaying];
       if (currentAudio) {
-        currentAudio.pause()
-        currentAudio.currentTime = 0
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
       }
     }
 
-    // Toggle play/pause for selected meditation
-    if (currentlyPlaying === meditationId && isPlaying) {
-      // Pause current
-      if (audio) {
-        audio.pause()
-      }
-      setIsPlaying(false)
+    if (currentlyPlaying === meditation.id && isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
     } else {
-      // Play selected
-      if (audio) {
-        audio.play().catch(() => {
-          // Handle play error (e.g., no actual audio file)
-          console.log("Demo: Playing", meditationId)
-        })
-      }
-      setCurrentlyPlaying(meditationId)
-      setIsPlaying(true)
+      audio.play().catch(e => console.error("Audio playback error:", e));
+      setCurrentlyPlaying(meditation.id);
+      setIsPlaying(true);
     }
-  }
-
-  const handleEditMeditation = (meditation: MusicMeditation) => {
-    console.log("Editing meditation:", meditation.id)
-    // TODO: Open edit dialog or navigate to edit page
   }
 
   const handleDeleteMeditation = (meditation: MusicMeditation) => {
     setMeditationToDelete(meditation)
   }
 
-  const confirmDeletion = () => {
+  const confirmDeletion = async () => {
     if (meditationToDelete) {
-      console.log("Deleting meditation:", meditationToDelete.id)
-      // TODO: Implement actual deletion logic
-      setMeditationToDelete(null)
+      try {
+        await dispatch(deleteMeditation(meditationToDelete.id));
+        setMeditationToDelete(null);
+        // No need to re-fetch here as the reducer handles removal
+      } catch (error) {
+        console.error("Failed to delete meditation:", error);
+      }
     }
   }
 
@@ -167,6 +142,14 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
     }
   }
 
+  if (isLoading) {
+    return <div className="text-center py-8"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p>Loading meditations...</p></div>
+  }
+
+  if (error) {
+    return <div className="text-center py-8 text-red-500">Error: {error}</div>
+  }
+
   return (
     <>
       <div className="space-y-4">
@@ -178,7 +161,6 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
           {filteredMeditations.map((meditation) => (
             <Card key={meditation.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className={`bg-gradient-to-br ${getCategoryColor(meditation.category)} p-6 text-white relative`}>
-                {/* Action Menu */}
                 <div className="absolute top-2 right-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -189,7 +171,7 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleEditMeditation(meditation)}>
+                      <DropdownMenuItem onClick={() => onEditMeditation(meditation)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Meditation
                       </DropdownMenuItem>
@@ -202,7 +184,6 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
                   </DropdownMenu>
                 </div>
 
-                {/* Now Playing Indicator */}
                 {currentlyPlaying === meditation.id && isPlaying && (
                   <div className="absolute top-2 left-2">
                     <Badge className="bg-white/20 text-white border-white/30">
@@ -250,7 +231,7 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
                   <p className="text-sm text-muted-foreground line-clamp-2">{meditation.description}</p>
 
                   <Button
-                    onClick={() => handlePlayPause(meditation.id)}
+                    onClick={() => handlePlayPause(meditation)}
                     className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                   >
                     {currentlyPlaying === meditation.id && isPlaying ? (
@@ -280,7 +261,6 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!meditationToDelete} onOpenChange={() => setMeditationToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

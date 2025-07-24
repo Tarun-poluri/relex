@@ -4,7 +4,7 @@ import { useState } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { OwnersTable } from "@/components/owners-table"
-import { CreateOwnerDialog } from "@/components/create-owner-dialog"
+import { OwnerFormDialog } from "@/components/create-owner-dialog" // Corrected import: renamed to OwnerFormDialog
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,8 +63,12 @@ export default function OwnersPage() {
           {/* Owners Table */}
           <OwnersTable searchQuery={searchQuery} statusFilter={statusFilter} />
 
-          {/* Create Owner Dialog */}
-          <CreateOwnerDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} />
+          {/* Owner Form Dialog (for Create) */}
+          <OwnerFormDialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+            ownerToEdit={null} // Explicitly pass null for creation mode
+          />
         </main>
       </SidebarInset>
     </SidebarProvider>
