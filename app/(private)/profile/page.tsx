@@ -100,7 +100,6 @@ export default function ProfilePage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <DashboardHeader />
         <main className="flex-1 space-y-6 p-6">
           {/* Page Header */}
           <div className="flex flex-col space-y-2">

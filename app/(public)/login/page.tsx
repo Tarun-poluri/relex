@@ -8,53 +8,36 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { LOGIN_CREDENTIALS } from "@/data/login-details"
-import { loginSuccess } from "@/store/reducers/authReducer"
-import { useAppDispatch } from "@/store/hooks"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { login } from "@/store/actions/authActions"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [formError, setFormError] = useState("")
   const [, forceUpdate] = useState(0)
 
   const validator = useRef(new SimpleReactValidator({ autoForceUpdate: { forceUpdate } }))
   const router = useRouter()
   const dispatch = useAppDispatch()
+  const { isLoading, error } = useAppSelector((state) => state.auth);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError("")
 
     if (validator.current.allValid()) {
-      setIsLoading(true)
       try {
-        await new Promise((res) => setTimeout(res, 1000))
+        const result = await dispatch(login({ email, password, rememberMe }));
 
-        const isValid =
-          email === LOGIN_CREDENTIALS.email &&
-          password === LOGIN_CREDENTIALS.password
-
-        if (isValid) {
-          const user = { email, password }
-
-          dispatch(loginSuccess({ email }))
-
-          if (rememberMe) {
-            localStorage.setItem("user", JSON.stringify(user))
-          } else {
-            sessionStorage.setItem("user", JSON.stringify(user))
-          }
-
-          router.push("/dashboard")
+        if (result.success) {
+          router.push("/dashboard");
         } else {
-          setFormError("Invalid email or password. Please try again.")
+          setFormError(result.error || "Invalid email or password. Please try again.");
         }
-      } catch (error) {
-        setFormError("Something went wrong. Please try again.")
-      } finally {
-        setIsLoading(false)
+      } catch (err) {
+        setFormError("An unexpected error occurred. Please try again.");
       }
     } else {
       validator.current.showMessages()
@@ -125,7 +108,7 @@ export default function LoginPage() {
                 <label className="text-sm font-normal">Remember me</label>
               </div>
 
-              {formError && <p className="text-sm text-red-500 text-center">{formError}</p>}
+              {(formError || error) && <p className="text-sm text-red-500 text-center">{formError || error}</p>}
 
               <Button
                 type="submit"

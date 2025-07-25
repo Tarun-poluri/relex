@@ -1,28 +1,50 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface AuthState {
-  user: {
-    email: string
-  } | null
+  isLoggedIn: boolean;
+  user: { email: string } | null;
+  isLoading: boolean;
+  error: string | null;
 }
 
 const initialState: AuthState = {
+  isLoggedIn: false,
   user: null,
-}
+  isLoading: false,
+  error: null,
+};
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    loginSuccess: (state, action: PayloadAction<{ email: string }>) => {
-      state.user = action.payload
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
     },
-    logout: (state) => {
-      state.user = null
+    loginSuccess: (state, action: PayloadAction<{ email: string }>) => {
+      state.isLoggedIn = true;
+      state.user = action.payload;
+      state.error = null;
+      state.isLoading = false;
+    },
+    loginFailure: (state, action: PayloadAction<string | null>) => {
+      state.isLoggedIn = false;
+      state.user = null;
+      state.error = action.payload;
+      state.isLoading = false;
+    },
+    rehydrateAuth: (state, action: PayloadAction<{ email: string } | null>) => {
+      if (action.payload) {
+        state.isLoggedIn = true;
+        state.user = action.payload;
+      } else {
+        state.isLoggedIn = false;
+        state.user = null;
+      }
+      state.isLoading = false;
     },
   },
-})
+});
 
-export const { loginSuccess, logout } = authSlice.actions
-export default authSlice.reducer
-export type { AuthState }
+export const { setLoading, loginSuccess, loginFailure, rehydrateAuth } = authSlice.actions;
+export default authSlice.reducer;
