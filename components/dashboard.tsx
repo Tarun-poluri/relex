@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useMemo } from "react"
 import { AppSidebar } from "./app-sidebar"
 import { DashboardHeader } from "./dashboard-header"
 import { RecentActivity } from "./recent-activity"
@@ -7,9 +8,37 @@ import { DailyPlayChart } from "./daily-play-chart"
 import { UsersChart } from "./users-chart"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3, TrendingUp, Users, Zap, Calendar, Music, User, Play } from "lucide-react"
+import { BarChart3, TrendingUp, Users, Zap, Calendar, Music, User, Play, Loader2 } from "lucide-react"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { fetchMeditations } from "@/store/actions/meditationActions"
+import { fetchOwners } from "@/store/actions/ownersactions" // Import fetchOwners action
 
 export default function Dashboard() {
+  const dispatch = useAppDispatch();
+  const { meditations, isLoading: meditationsLoading, error: meditationsError } = useAppSelector((state) => state.meditations);
+  const { owners, isLoading: ownersLoading, error: ownersError } = useAppSelector((state) => state.owners); // Get owners state
+
+  useEffect(() => {
+    dispatch(fetchMeditations());
+    dispatch(fetchOwners());
+  }, [dispatch]);
+
+  const totalMeditations = meditations.length;
+  const totalOwners = owners.length;
+
+  // Calculate new owners joined last week
+  const newOwnersLastWeek = useMemo(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    return owners.filter(owner => {
+      const createdAtDate = new Date(owner.createdAt);
+      return createdAtDate >= sevenDaysAgo;
+    }).length;
+  }, [owners]);
+
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -32,18 +61,24 @@ export default function Dashboard() {
 
           {/* Dashboard Metrics Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            {/* Total Owners */}
+            {/* Total Owners - Dynamically fetched */}
             <Card>
               <CardContent className="p-6">
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Total Owners</p>
                   <div className="flex items-center justify-between">
-                    <div className="text-3xl font-bold">12</div>
+                    {ownersLoading ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
+                    ) : ownersError ? (
+                      <span className="text-sm text-red-500">Error</span>
+                    ) : (
+                      <div className="text-3xl font-bold">{totalOwners}</div>
+                    )}
                     <Users className="h-5 w-5 text-purple-500" />
                   </div>
                   <div className="flex items-center gap-1 text-xs text-green-600">
                     <TrendingUp className="h-3 w-3" />
-                    <span>2 New owners</span>
+                    <span>{newOwnersLastWeek} New owners</span>
                   </div>
                 </div>
               </CardContent>
@@ -66,18 +101,24 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Total Meditations */}
+            {/* Total Meditations - Dynamically fetched */}
             <Card>
               <CardContent className="p-6">
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Total Meditations</p>
                   <div className="flex items-center justify-between">
-                    <div className="text-3xl font-bold">4532</div>
+                    {meditationsLoading ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-green-500" />
+                    ) : meditationsError ? (
+                      <span className="text-sm text-red-500">Error</span>
+                    ) : (
+                      <div className="text-3xl font-bold">{totalMeditations}</div>
+                    )}
                     <Music className="h-5 w-5 text-green-500" />
                   </div>
                   <div className="flex items-center gap-1 text-xs text-green-600">
                     <TrendingUp className="h-3 w-3" />
-                    <span>45 New Meditations</span>
+                    <span>45 New Meditations</span> {/* This would also ideally be dynamic */}
                   </div>
                 </div>
               </CardContent>

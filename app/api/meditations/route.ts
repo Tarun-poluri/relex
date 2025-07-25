@@ -78,7 +78,7 @@ export async function PUT(request: Request) {
 
     meditations[meditationIndex] = {
       ...updatedMeditationData,
-      updatedAt: new Date().toISOString(), // Update timestamp on edit
+      updatedAt: new Date().toISOString(),
     };
 
     await saveMeditations(meditations);

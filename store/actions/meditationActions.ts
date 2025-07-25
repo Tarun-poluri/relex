@@ -26,7 +26,7 @@ export const createMeditation = (meditationData: Omit<MusicMeditation, 'id' | 'c
     const response = await createMeditationApi(meditationData);
     dispatch(addMeditation(response.data));
     dispatch(setError(null));
-    return response.data; // Return the created meditation
+    return response.data;
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || error.message;
     dispatch(setError(errorMessage));
@@ -43,7 +43,7 @@ export const updateMeditation = (meditation: MusicMeditation) => async (dispatch
     const response = await updateMeditationApi(meditation);
     dispatch(updateMeditationInState(response.data));
     dispatch(setError(null));
-    return response.data; // Return the updated meditation
+    return response.data;
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || error.message;
     dispatch(setError(errorMessage));

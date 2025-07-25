@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { useForm } from "react-hook-form"
-import SimpleReactValidator from "simple-react-validator" // Import SimpleReactValidator
+import SimpleReactValidator from "simple-react-validator"
 import Image from "next/image"
 import {
   Dialog,
@@ -21,17 +21,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Loader2, Upload, X, Play, Pause, Volume2 } from "lucide-react"
 import { useAppDispatch } from "@/store/hooks"
-import { createMeditation, updateMeditation, fetchMeditations } from "@/store/actions/meditationActions" // Corrected path
+import { createMeditation, updateMeditation, fetchMeditations } from "@/store/actions/meditationActions"
 import { MusicMeditation } from "@/app/types/meditationTypes"
 
 type MeditationFormValues = {
   title: string
   duration: string
-  category: "relaxation" | "healing" | "meditation" | "sleep" // Keep the union type for Select component values
+  category: "relaxation" | "healing" | "meditation" | "sleep"
   artist: string
   description: string
-  thumbnail: string // Now part of form values for validation
-  audioUrl: string // Now part of form values for validation
+  thumbnail: string
+  audioUrl: string
 }
 
 interface MeditationFormDialogProps {
@@ -49,11 +49,10 @@ export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: Me
   const audioInputRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   const dispatch = useAppDispatch();
-  const [forceUpdate, setForceUpdate] = useState(false); // State to force re-render for validation messages
+  const [forceUpdate, setForceUpdate] = useState(false);
 
   const isEditing = !!meditationToEdit;
 
-  // Initialize SimpleReactValidator
   const validator = useRef(new SimpleReactValidator({
     autoForceUpdate: { forceUpdate: () => setForceUpdate(!forceUpdate) },
     messages: {
@@ -67,15 +66,14 @@ export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: Me
   }));
 
   const form = useForm<MeditationFormValues>({
-    // No resolver needed for SimpleReactValidator
     defaultValues: {
       title: "",
       duration: "",
       category: "relaxation",
       artist: "",
       description: "",
-      thumbnail: "/placeholder.svg", // Default for new, will be overwritten by selectedThumbnail
-      audioUrl: "", // Default for new, will be overwritten by selectedAudio
+      thumbnail: "/placeholder.svg",
+      audioUrl: "",
     },
   })
 
@@ -111,14 +109,12 @@ export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: Me
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
-      // Clear validator messages when dialog opens/resets
       validator.current.hideMessages();
     }
   }, [open, meditationToEdit, isEditing, form]);
 
 
   const onSubmit = async (data: MeditationFormValues) => {
-    // Manually trigger validation check
     if (validator.current.allValid()) {
       setIsLoading(true)
       try {
@@ -154,9 +150,8 @@ export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: Me
         setIsLoading(false)
       }
     } else {
-      // Show validation messages if form is not valid
       validator.current.showMessages();
-      setForceUpdate(!forceUpdate); // Force re-render to display messages
+      setForceUpdate(!forceUpdate);
     }
   }
 
@@ -177,9 +172,34 @@ export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: Me
     if (file) {
       const reader = new FileReader()
       reader.onload = (e) => {
-        setSelectedAudio(e.target?.result as string)
-        setIsAudioPlaying(false)
-        form.setValue("audioUrl", e.target?.result as string, { shouldValidate: true });
+        const audioDataUrl = e.target?.result as string;
+        setSelectedAudio(audioDataUrl);
+        setIsAudioPlaying(false);
+        form.setValue("audioUrl", audioDataUrl, { shouldValidate: true });
+
+        // Create a temporary audio element to get duration
+        const tempAudio = new Audio(audioDataUrl);
+        tempAudio.onloadedmetadata = () => {
+          const durationInSeconds = tempAudio.duration;
+          const durationInMinutes = durationInSeconds / 60;
+          let calculatedDurationCategory: MeditationFormValues['duration'] = "";
+
+          if (durationInMinutes < 15) {
+            calculatedDurationCategory = "less-than-15";
+          } else if (durationInMinutes >= 15 && durationInMinutes <= 30) {
+            calculatedDurationCategory = "15-30";
+          } else if (durationInMinutes > 30 && durationInMinutes <= 60) {
+            calculatedDurationCategory = "30-60";
+          } else {
+            calculatedDurationCategory = "greater-than-60";
+          }
+          form.setValue("duration", calculatedDurationCategory, { shouldValidate: true });
+        };
+        tempAudio.onerror = (err) => {
+            console.error("Error loading audio metadata:", err);
+            // Optionally set an error state or a default duration
+            form.setValue("duration", "", { shouldValidate: true }); // Clear or set a default if error
+        };
       }
       reader.readAsDataURL(file)
     }
@@ -187,7 +207,7 @@ export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: Me
 
   const removeThumbnail = () => {
     setSelectedThumbnail(null)
-    form.setValue("thumbnail", "", { shouldValidate: true }); // Clear thumbnail value in form
+    form.setValue("thumbnail", "", { shouldValidate: true });
     if (thumbnailInputRef.current) {
       thumbnailInputRef.current.value = ""
     }
@@ -197,6 +217,7 @@ export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: Me
     setSelectedAudio(null)
     setIsAudioPlaying(false)
     form.setValue("audioUrl", "", { shouldValidate: true });
+    form.setValue("duration", "", { shouldValidate: true }); // Clear duration when audio is removed
     if (audioInputRef.current) {
       audioInputRef.current.value = ""
     }
@@ -279,7 +300,7 @@ export function AddMeditationDialog({ open, onOpenChange, meditationToEdit }: Me
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Duration *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={true}> {/* Made disabled */}
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select Duration" />
