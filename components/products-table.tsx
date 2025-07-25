@@ -41,8 +41,8 @@ export function ProductsTable({ searchQuery, categoryFilter }: ProductsTableProp
 
   const [currentPage, setCurrentPage] = useState(1)
   const [productToDelete, setProductToDelete] = useState<ProductInterface | null>(null)
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false); // State for dialog open/close
-  const [productToEdit, setProductToEdit] = useState<ProductInterface | null>(null); // State for product being edited
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<ProductInterface | null>(null);
 
   const productsPerPage = 10
 
@@ -57,7 +57,7 @@ export function ProductsTable({ searchQuery, categoryFilter }: ProductsTableProp
       const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
       return matchesSearch && matchesCategory
     })
-  }, [searchQuery, categoryFilter, products]) // Depend on 'products' from Redux state
+  }, [searchQuery, categoryFilter, products])
 
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
   const startIndex = (currentPage - 1) * productsPerPage

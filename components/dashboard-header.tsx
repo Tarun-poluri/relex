@@ -14,8 +14,18 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import React from "react"
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+}
+
+export function DashboardHeader({ searchQuery, onSearchChange }: DashboardHeaderProps) {
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onSearchChange(event.target.value);
+  };
+
   return (
     <header className="flex h-16 items-center gap-4 border-b bg-background px-6">
       <SidebarTrigger className="-ml-1" />
@@ -23,7 +33,12 @@ export function DashboardHeader() {
       <div className="flex flex-1 items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search users, sessions, products..." className="pl-10" />
+          <Input
+            placeholder="Search users, sessions, products..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={handleInputChange}
+          />
         </div>
       </div>
 

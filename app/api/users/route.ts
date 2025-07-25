@@ -1,4 +1,3 @@
-// app/api/users/route.ts
 import { NextResponse } from 'next/server';
 import path from 'path';
 import { promises as fs } from 'fs';
@@ -32,7 +31,6 @@ export async function GET() {
     const fileContents = await fs.readFile(usersFilePath, 'utf8');
     return NextResponse.json(JSON.parse(fileContents) as User[]);
   } catch (error) {
-    // If file doesn't exist, create it with default users
     await fs.writeFile(usersFilePath, JSON.stringify(defaultUsers, null, 2));
     return NextResponse.json(defaultUsers);
   }

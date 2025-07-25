@@ -18,7 +18,10 @@ export default function UsersPage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <DashboardHeader />
+        <DashboardHeader
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+         />
         <main className="flex-1 space-y-6 p-6">
           {/* Page Header */}
           <div className="flex flex-col space-y-2">

@@ -20,7 +20,10 @@ export default function OwnersPage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <DashboardHeader />
+        <DashboardHeader 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
         <main className="flex-1 space-y-6 p-6">
           {/* Page Header */}
           <div className="flex flex-col space-y-2">
@@ -67,7 +70,7 @@ export default function OwnersPage() {
           <OwnerFormDialog
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
-            ownerToEdit={null} // Explicitly pass null for creation mode
+            ownerToEdit={null}
           />
         </main>
       </SidebarInset>

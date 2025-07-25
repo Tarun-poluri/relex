@@ -26,13 +26,15 @@ import { Play, Pause, Volume2, MoreHorizontal, Edit, Trash2, Music, Loader2 } fr
 import { type MusicMeditation } from '@/app/types/meditationTypes'
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchMeditations, deleteMeditation } from "@/store/actions/meditationActions"
-import { AddMeditationDialog } from "@/components/add-meditation-dialog" // Import the dialog
+import { recordMeditationPlay } from "@/store/actions/dailyPlayActions"
+import { AddMeditationDialog } from "@/components/add-meditation-dialog"
+import Image from "next/image"
 
 interface MusicMeditationGridProps {
   searchQuery: string
   durationFilter: string
   categoryFilter: string
-  onEditMeditation: (meditation: MusicMeditation) => void; // New prop for edit
+  onEditMeditation: (meditation: MusicMeditation) => void;
 }
 
 export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilter, onEditMeditation }: MusicMeditationGridProps) {
@@ -90,9 +92,11 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
       audio.pause();
       setIsPlaying(false);
     } else {
-      audio.play().catch(e => console.error("Audio playback error:", e));
-      setCurrentlyPlaying(meditation.id);
-      setIsPlaying(true);
+      audio.play().then(() => {
+        setCurrentlyPlaying(meditation.id);
+        setIsPlaying(true);
+        dispatch(recordMeditationPlay(meditation.id));
+      }).catch(e => console.error("Audio playback error:", e));
     }
   }
 
@@ -105,7 +109,6 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
       try {
         await dispatch(deleteMeditation(meditationToDelete.id));
         setMeditationToDelete(null);
-        // No need to re-fetch here as the reducer handles removal
       } catch (error) {
         console.error("Failed to delete meditation:", error);
       }
@@ -195,16 +198,29 @@ export function MusicMeditationGrid({ searchQuery, durationFilter, categoryFilte
 
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="relative">
-                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center">
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center">
-                        <div className="text-xs font-bold text-white">
-                          <div className="flex flex-col items-center">
-                            <div className="w-8 h-1 bg-white rounded mb-1"></div>
-                            <div className="w-6 h-1 bg-white rounded mb-1"></div>
-                            <div className="w-4 h-1 bg-white rounded"></div>
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center overflow-hidden"> {/* Added overflow-hidden */}
+                      {meditation.thumbnail && meditation.thumbnail !== "/placeholder.svg" ? (
+                        <Image
+                          src={meditation.thumbnail}
+                          alt={meditation.title}
+                          width={80}
+                          height={80}
+                          className="object-cover rounded-full"
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder.svg";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center">
+                          <div className="text-xs font-bold text-white">
+                            <div className="flex flex-col items-center">
+                              <div className="w-8 h-1 bg-white rounded mb-1"></div>
+                              <div className="w-6 h-1 bg-white rounded mb-1"></div>
+                              <div className="w-4 h-1 bg-white rounded"></div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
 

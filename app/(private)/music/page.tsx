@@ -21,15 +21,15 @@ export default function MusicPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [durationFilter, setDurationFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false) // Renamed for clarity
-  const [meditationToEdit, setMeditationToEdit] = useState<MusicMeditation | null>(null); // State for editing
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
+  const [meditationToEdit, setMeditationToEdit] = useState<MusicMeditation | null>(null);
 
   useEffect(() => {
     dispatch(fetchMeditations());
   }, [dispatch]);
 
   const handleAddMeditation = () => {
-    setMeditationToEdit(null); // Ensure null for create mode
+    setMeditationToEdit(null);
     setIsFormDialogOpen(true);
   };
 
@@ -38,13 +38,16 @@ export default function MusicPage() {
     setIsFormDialogOpen(true);
   };
 
-  const totalMeditations = meditations.length; // Get actual count from Redux store
+  const totalMeditations = meditations.length;
 
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <DashboardHeader />
+        <DashboardHeader 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
         <main className="flex-1 space-y-6 p-6">
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
@@ -109,14 +112,14 @@ export default function MusicPage() {
             searchQuery={searchQuery}
             durationFilter={durationFilter}
             categoryFilter={categoryFilter}
-            onEditMeditation={handleEditMeditation} // Pass the edit handler
+            onEditMeditation={handleEditMeditation} 
           />
 
           <AddMeditationDialog
             open={isFormDialogOpen}
             onOpenChange={(open) => {
               setIsFormDialogOpen(open);
-              if (!open) { // When dialog closes, clear meditationToEdit
+              if (!open) {
                 setMeditationToEdit(null);
               }
             }}

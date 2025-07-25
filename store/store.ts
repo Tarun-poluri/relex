@@ -5,6 +5,7 @@ import userReducer from '@/store/reducers/userReducer'
 import ownerReducer from '@/store/reducers/ownerReducer'
 import productReducer from '@/store/reducers/productReducer'
 import meditationReducer from '@/store/reducers/meditationReducer'
+import dailyPlayReducer from '@/store/reducers/dailyPlayReducer'
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,7 @@ export const store = configureStore({
     owners: ownerReducer,
     products: productReducer,
     meditations: meditationReducer,
+    dailyPlay: dailyPlayReducer,
   },
 })
 
