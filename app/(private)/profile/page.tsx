@@ -1,9 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
 import { AppSidebar } from "../../../components/app-sidebar"
 import { DashboardHeader } from "../../../components/dashboard-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -11,35 +9,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { User, Mail, Phone, MapPin, Calendar, Shield, Bell, Lock, Camera, Loader2 } from "lucide-react"
+import SimpleReactValidator from "simple-react-validator"
+import { useAppSelector } from "@/store/hooks"
 
-const profileSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  phone: z.string().min(10, "Please enter a valid phone number"),
-  bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
-  location: z.string().optional(),
-})
+interface ProfileFormValues {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  bio?: string;
+  location?: string;
+}
 
-const securitySchema = z
-  .object({
-    currentPassword: z.string().min(6, "Password must be at least 6 characters"),
-    newPassword: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  })
-
-type ProfileFormValues = z.infer<typeof profileSchema>
-type SecurityFormValues = z.infer<typeof securitySchema>
+interface SecurityFormValues {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
 
 export default function ProfilePage() {
   const [isProfileLoading, setIsProfileLoading] = useState(false)
@@ -47,21 +39,53 @@ export default function ProfilePage() {
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [pushNotifications, setPushNotifications] = useState(false)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  const [, forceUpdate] = useState(0)
+
+  const loggedInUser = useAppSelector((state) => state.auth.user);
+
+  const profileValidator = useRef(new SimpleReactValidator({
+    autoForceUpdate: { forceUpdate },
+    messages: {
+      required: 'This field is required.',
+      min: 'Must be at least :min characters.',
+      email: 'Must be a valid email.',
+      phone: 'Must be a valid phone number (min 10 digits).',
+      max: 'Must be less than :max characters.',
+      alpha_num_dash_space: 'Can only contain letters, numbers, dashes, and spaces.',
+    }
+  }));
+
+  const securityValidator = useRef(new SimpleReactValidator({
+    autoForceUpdate: { forceUpdate },
+    messages: {
+      required: 'This field is required.',
+      min: 'Must be at least :min characters.',
+      passwordMatch: 'Passwords do not match.',
+    },
+    validators: {
+      passwordMatch: {
+        rule: (val) => {
+          const newPasswordValue = securityForm.getValues('newPassword');
+          return val === newPasswordValue;
+        },
+        message: 'Passwords do not match.'
+      }
+    }
+  }));
+
 
   const profileForm = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
     defaultValues: {
-      firstName: "Admin",
-      lastName: "User",
-      email: "admin@relaxflow.com",
-      phone: "+1 (555) 123-4567",
-      bio: "RelaxFlow platform administrator with expertise in sound therapy and meditation technologies.",
-      location: "San Francisco, CA",
+      firstName: "",
+      lastName: "",
+      email: loggedInUser?.email || "",
+      phone: "",
+      bio: "",
+      location: "",
     },
   })
 
   const securityForm = useForm<SecurityFormValues>({
-    resolver: zodResolver(securitySchema),
     defaultValues: {
       currentPassword: "",
       newPassword: "",
@@ -69,30 +93,62 @@ export default function ProfilePage() {
     },
   })
 
-  const onProfileSubmit = async (data: ProfileFormValues) => {
-    setIsProfileLoading(true)
+  useEffect(() => {
+    let userEmailFromStorage = '';
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      console.log("Profile updated:", data)
-    } catch (error) {
-      console.error("Profile update error:", error)
-    } finally {
-      setIsProfileLoading(false)
+      const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser && parsedUser.email) {
+          userEmailFromStorage = parsedUser.email;
+        }
+      }
+    } catch (e) {
+    }
+
+    const emailToSet = loggedInUser?.email || userEmailFromStorage;
+
+    if (emailToSet) {
+      profileForm.reset({
+        ...profileForm.getValues(),
+        email: emailToSet,
+      });
+    }
+  }, [loggedInUser?.email, profileForm]);
+
+
+  const onProfileSubmit = async (data: ProfileFormValues) => {
+    if (profileValidator.current.allValid()) {
+      setIsProfileLoading(true)
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+        console.log("Profile updated:", data)
+      } catch (error) {
+        console.error("Profile update error:", error)
+      } finally {
+        setIsProfileLoading(false)
+      }
+    } else {
+      profileValidator.current.showMessages();
+      forceUpdate((prev) => prev + 1);
     }
   }
 
   const onSecuritySubmit = async (data: SecurityFormValues) => {
-    setIsSecurityLoading(true)
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      console.log("Password updated:", data)
-      securityForm.reset()
-    } catch (error) {
-      console.error("Password update error:", error)
-    } finally {
-      setIsSecurityLoading(false)
+    if (securityValidator.current.allValid()) {
+      setIsSecurityLoading(true)
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+        console.log("Password updated:", data)
+        securityForm.reset()
+      } catch (error) {
+        console.error("Password update error:", error)
+      } finally {
+        setIsSecurityLoading(false)
+      }
+    } else {
+      securityValidator.current.showMessages();
+      forceUpdate((prev) => prev + 1);
     }
   }
 
@@ -100,8 +156,8 @@ export default function ProfilePage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
+        <DashboardHeader searchQuery="" onSearchChange={() => {}} />
         <main className="flex-1 space-y-6 p-6">
-          {/* Page Header */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
               <User className="h-6 w-6" />
@@ -111,7 +167,6 @@ export default function ProfilePage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            {/* Profile Overview */}
             <Card className="lg:col-span-1">
               <CardHeader>
                 <CardTitle>Profile Overview</CardTitle>
@@ -122,15 +177,17 @@ export default function ProfilePage() {
                   <div className="relative">
                     <Avatar className="h-24 w-24">
                       <AvatarImage src="/placeholder-user.jpg" alt="Admin User" />
-                      <AvatarFallback className="text-lg">AU</AvatarFallback>
+                      <AvatarFallback className="text-lg">
+                        {loggedInUser?.email ? loggedInUser.email.substring(0, 2).toUpperCase() : "AU"}
+                      </AvatarFallback>
                     </Avatar>
                     <Button size="icon" variant="outline" className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full">
                       <Camera className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="text-center">
-                    <h3 className="text-lg font-semibold">Admin User</h3>
-                    <p className="text-sm text-muted-foreground">admin@relaxflow.com</p>
+                    <h3 className="text-lg font-semibold">{loggedInUser?.email ? loggedInUser.email.split('@')[0] : "Admin User"}</h3>
+                    <p className="text-sm text-muted-foreground">{loggedInUser?.email || "admin@relaxflow.com"}</p>
                   </div>
                 </div>
 
@@ -157,9 +214,7 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            {/* Profile Form and Settings */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Personal Information */}
               <Card>
                 <CardHeader>
                   <CardTitle>Personal Information</CardTitle>
@@ -178,7 +233,9 @@ export default function ProfilePage() {
                               <FormControl>
                                 <Input placeholder="Enter first name" {...field} />
                               </FormControl>
-                              <FormMessage />
+                              <div className="text-sm text-red-500">
+                                {profileValidator.current.message("firstName", field.value, "required|min:2")}
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -192,7 +249,9 @@ export default function ProfilePage() {
                               <FormControl>
                                 <Input placeholder="Enter last name" {...field} />
                               </FormControl>
-                              <FormMessage />
+                              <div className="text-sm text-red-500">
+                                {profileValidator.current.message("lastName", field.value, "required|min:2")}
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -211,7 +270,9 @@ export default function ProfilePage() {
                                   <Input placeholder="Enter email" className="pl-10" {...field} />
                                 </div>
                               </FormControl>
-                              <FormMessage />
+                              <div className="text-sm text-red-500">
+                                {profileValidator.current.message("email", field.value, "required|email")}
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -228,7 +289,9 @@ export default function ProfilePage() {
                                   <Input placeholder="Enter phone number" className="pl-10" {...field} />
                                 </div>
                               </FormControl>
-                              <FormMessage />
+                              <div className="text-sm text-red-500">
+                                {profileValidator.current.message("phone", field.value, "required|min:10")}
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -246,7 +309,9 @@ export default function ProfilePage() {
                                 <Input placeholder="Enter location" className="pl-10" {...field} />
                               </div>
                             </FormControl>
-                            <FormMessage />
+                            <div className="text-sm text-red-500">
+                                {profileValidator.current.message("location", field.value, "alpha_num_dash_space")}
+                            </div>
                           </FormItem>
                         )}
                       />
@@ -260,7 +325,9 @@ export default function ProfilePage() {
                             <FormControl>
                               <Textarea placeholder="Tell us about yourself..." className="min-h-[100px]" {...field} />
                             </FormControl>
-                            <FormMessage />
+                            <div className="text-sm text-red-500">
+                                {profileValidator.current.message("bio", field.value, "max:500")}
+                            </div>
                           </FormItem>
                         )}
                       />
@@ -280,7 +347,6 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
-              {/* Security Settings */}
               <Card>
                 <CardHeader>
                   <CardTitle>Security Settings</CardTitle>
@@ -306,7 +372,9 @@ export default function ProfilePage() {
                                 />
                               </div>
                             </FormControl>
-                            <FormMessage />
+                            <div className="text-sm text-red-500">
+                                {securityValidator.current.message("currentPassword", field.value, "required|min:6")}
+                            </div>
                           </FormItem>
                         )}
                       />
@@ -321,7 +389,9 @@ export default function ProfilePage() {
                               <FormControl>
                                 <Input type="password" placeholder="Enter new password" {...field} />
                               </FormControl>
-                              <FormMessage />
+                              <div className="text-sm text-red-500">
+                                {securityValidator.current.message("newPassword", field.value, "required|min:6")}
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -335,7 +405,9 @@ export default function ProfilePage() {
                               <FormControl>
                                 <Input type="password" placeholder="Confirm new password" {...field} />
                               </FormControl>
-                              <FormMessage />
+                              <div className="text-sm text-red-500">
+                                {securityValidator.current.message("confirmPassword", field.value, `required|min:6|passwordMatch`)}
+                              </div>
                             </FormItem>
                           )}
                         />
@@ -352,7 +424,6 @@ export default function ProfilePage() {
 
                   <Separator />
 
-                  {/* Two-Factor Authentication */}
                   <div className="space-y-4">
                     <h4 className="text-sm font-medium">Two-Factor Authentication</h4>
                     <div className="flex items-center justify-between rounded-lg border p-4">
@@ -368,7 +439,6 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
-              {/* Notification Preferences */}
               <Card>
                 <CardHeader>
                   <CardTitle>Notification Preferences</CardTitle>

@@ -1,0 +1,38 @@
+description: Standards and best practices for string manipulation utility functions globs: frontend/utils/stringUtils.ts alwaysApply: true
+String Utility Functions
+
+Overview
+This document defines standards and best practices for string manipulation utility functions used throughout the application.
+
+Functions
+capitalizeFirstLetter
+Purpose: Capitalizes the first letter of a string
+
+Input: A single string parameter
+
+Return Type: Always returns a string
+
+Edge Cases:
+  - Empty strings should return an empty string
+  - Null or undefined inputs should return an empty string
+
+Implementation Requirements:
+  - Use charAt(0) for first character extraction
+  - Use toUpperCase() for capitalization
+  - Use slice(1) to get the rest of the string
+
+formatFullName
+Purpose: Formats a full name from first and last name components
+
+Input: Two string parameters (firstName, lastName)
+
+Return Type: Always returns a string
+
+Edge Cases:
+  - If either name is empty, the function should still work
+  - Whitespace should be properly trimmed
+
+Implementation Requirements:
+  - Use capitalizeFirstLetter for each name component
+  - Use template literals for string construction
+  - Apply trim() to the final result

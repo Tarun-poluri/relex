@@ -1,0 +1,60 @@
+description: Standardized Error Handling and Logging Guidelines globs: **/.ts, **/.tsx alwaysApply: true
+Error Handling & Logging
+
+5.1. Log Levels
+DEBUG: Fine-grained development information (disabled in production).
+
+INFO: General operational information about system activities.
+
+WARN: Warning conditions that might lead to errors.
+
+ERROR: Error conditions disrupting operation of a specific function.
+
+CRITICAL: Critical conditions affecting multiple components.
+
+FATAL: System cannot continue operation.
+
+5.2. Error Categories
+API Errors: External API communication issues (endpoint, method, status code).
+
+Authentication Errors: Authentication and authorization failures (method, reason; no sensitive data).
+
+Database Errors: Database operation failures (operation type, collection/table; no raw queries).
+
+Validation Errors: Input validation failures (rule, component/page).
+
+Rendering Errors: Component rendering failures (component name, rendering phase).
+
+SSR Errors: Next.js server-side rendering failures (affected page, data fetching method).
+
+Client-Side Errors: Client-only runtime errors (browser information).
+
+Configuration Errors: Environment and configuration issues (missing/invalid key).
+
+5.3. Contextual Information
+Always Include: Timestamp (ISO 8601), Request ID, User context (if authenticated), Environment, Component path, Stack trace (for ERROR and above).
+
+Never Include: Passwords, tokens, complete request/response bodies, PII, sensitive business data, raw SQL queries.
+
+5.4. Formatting Rules
+Console Logs: Color-coding, [timestamp] [level] [category] message format.
+
+File Logs: One error per line, pipe-delimited format (e.g., 2023-04-09T14:30:00Z | ERROR | API | req_789 | Message).
+
+Service Logs (External): Structured JSON format with all metadata, grouped by request ID.
+
+5.5. Handling Patterns
+API Routes: Wrap handlers with error logging middleware, return standardized error responses, log ERROR for 5xx, WARN for 4xx.
+
+Server-Side Rendering: Use try/catch in data fetching functions, log errors before fallback.
+
+Client Components: Implement error boundaries, log client errors to server when possible, graceful fallbacks.
+
+Global Error Handling: Implement unhandledRejection and uncaughtException handlers, log FATAL for unhandled errors.
+
+5.6. Recovery Strategies
+Automatic Retry: Exponential backoff for transient errors, log attempts, set limits.
+
+Fallback Content: Show fallback UI, log use of fallback, include error details.
+
+Circuit Breaking: Implement for unreliable dependencies, log circuit state changes, include failure rates.

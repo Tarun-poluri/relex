@@ -1,0 +1,35 @@
+description: Redux Toolkit State Management and Data Persistence Guidelines globs: frontend/store/**/* alwaysApply: true
+State Management (Redux Toolkit)
+
+2.1. Principles
+Redux Toolkit: Preferred state management library using the slices pattern.
+
+Centralized State: Redux store serves as the single source of truth.
+
+Predictable State Changes: Enforce unidirectional data flow (Actions -> Reducers -> Store -> UI).
+
+2.2. Organization
+store/slices/: Redux slices (if used).
+
+store/actions/: Action creators and thunks.
+
+store/reducers/: Reducers for state updates.
+
+lib/api/: API calls (e.g., dailyPlayApi.ts, activityApi.ts).
+
+store/hooks.ts: Custom hooks for Redux (useAppDispatch, useAppSelector).
+
+2.3. Data Management
+Actions and Reducers: Use for all data management.
+
+Authentication Flows: Implement proper authentication flows with authActions and authReducer.
+
+Typed Interfaces: Use typed interfaces for all API responses and Redux state.
+
+Data Persistence (Simulated): For mock data, changes should be "persisted" by updating source arrays in data/ files directly via exported setter functions (e.g., setUsers).
+
+Mutable Data Source: Mock data arrays should be mutable (let data = [...] with export const setData = (newData) => { data = newData; };).
+
+Unique IDs: Generate unique IDs for new items (e.g., crypto.randomUUID()).
+
+Update Logic: For updates, find and replace; for deletions, filter; for creations, append.

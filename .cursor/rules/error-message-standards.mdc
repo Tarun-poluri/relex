@@ -1,132 +1,146 @@
----
-description: Standard error message formats for form validation to ensure consistency across the application
-globs: **/validation*.ts, **/commonValidations.ts
----
+description: Standard error message formats for form validation to ensure consistency across the application globs: */validation.ts, **/commonValidations.ts alwaysApply: true
+Form Validation Error Message Standards
+Principles
+Clarity: Error messages should clearly state what is wrong
 
-# Form Validation Error Message Standards
+Actionable: Messages should indicate how to fix the problem
 
-## Principles
+Consistent: Similar errors should have similar messages
 
-1. **Clarity**: Error messages should clearly state what is wrong
-2. **Actionable**: Messages should indicate how to fix the problem
-3. **Consistent**: Similar errors should have similar messages
-4. **Concise**: Messages should be brief but informative
-5. **Friendly**: Messages should avoid accusatory or technical language
+Concise: Messages should be brief but informative
 
-## Standard Error Message Formats
+Friendly: Messages should avoid accusatory or technical language
 
-### Required Field Errors
-
-```
+Standard Error Message Formats
+Required Field Errors
 "[Field name] is required"
-```
 
 Examples:
-- "First name is required"
-- "Email is required"
-- "Date of birth is required"
 
-### Length Restriction Errors
+"First name is required"
 
-```
+"Email is required"
+
+"Date of birth is required"
+
+Length Restriction Errors
 "[Field name] must be at least [n] characters"
 "[Field name] must be at most [n] characters"
 "[Field name] must be exactly [n] characters"
-```
 
 Examples:
-- "Password must be at least 8 characters"
-- "Username must be at most 20 characters"
-- "Verification code must be exactly 6 characters"
 
-### Format Restriction Errors
+"Password must be at least 8 characters"
 
-```
+"Username must be at most 20 characters"
+
+"Verification code must be exactly 6 characters"
+
+Format Restriction Errors
 "[Field name] is invalid"
 "[Field name] must contain [requirement]"
 "[Field name] must be in [format] format"
-```
 
 Examples:
-- "Email is invalid"
-- "Password must contain at least one number"
-- "Date must be in DD/MM/YYYY format"
 
-### Match Errors
+"Email is invalid"
 
-```
+"Password must contain at least one number"
+
+"Date must be in DD/MM/YYYY format"
+
+Match Errors
 "[Field names] do not match"
-```
 
 Examples:
-- "Passwords do not match"
-- "Email addresses do not match"
 
-### Boolean Field Errors
+"Passwords do not match"
 
-```
+"Email addresses do not match"
+
+Boolean Field Errors
 "You must [action]"
-```
 
 Examples:
-- "You must agree to the terms and conditions"
-- "You must confirm your age"
 
-### Complex Validation Errors
+"You must agree to the terms and conditions"
 
+"You must confirm your age"
+
+Complex Validation Errors
 For fields with multiple potential validation failures:
 
-1. Check for empty first
-2. Check for length restrictions
-3. Check for format/pattern restrictions
-4. Check for cross-field validations
+Check for empty first
 
-## Error Message Style Guide
+Check for length restrictions
 
-1. Start with capital letter
-2. End without punctuation
-3. Use present tense
-4. Be direct and specific
-5. Avoid technical jargon
-6. Use consistent terminology for the same field across the application
+Check for format/pattern restrictions
 
-## Common Field Error Messages
+Check for cross-field validations
 
-### Email
-- "Email is required"
-- "Email is invalid"
+Error Message Style Guide
+Start with capital letter
 
-### Password
-- "Password is required"
-- "Password must be at least 8 characters"
-- "Password must contain at least one uppercase letter"
-- "Password must contain at least one lowercase letter"
-- "Password must contain at least one number"
-- "Password must contain at least one special character"
+End without punctuation
 
-### Name Fields
-- "First name is required"
-- "Last name is required"
-- "Name can only contain letters"
+Use present tense
 
-### Date Fields
-- "Date of birth is required"
-- "Date must be in DD/MM/YYYY format"
-- "Date cannot be in the future"
+Be direct and specific
 
-### Phone Number
-- "Phone number is required"
-- "Phone number is invalid"
-- "Phone number must contain only digits"
+Avoid technical jargon
 
-### Terms and Conditions
-- "You must agree to the terms and conditions"
+Use consistent terminology for the same field across the application
 
-## Adding New Error Messages
+Common Field Error Messages
+Email
+"Email is required"
 
+"Email is invalid"
+
+Password
+"Password is required"
+
+"Password must be at least 8 characters"
+
+"Password must contain at least one uppercase letter"
+
+"Password must contain at least one lowercase letter"
+
+"Password must contain at least one number"
+
+"Password must contain at least one special character"
+
+Name Fields
+"First name is required"
+
+"Last name is required"
+
+"Name can only contain letters"
+
+Date Fields
+"Date of birth is required"
+
+"Date must be in DD/MM/YYYY format"
+
+"Date cannot be in the future"
+
+Phone Number
+"Phone number is required"
+
+"Phone number is invalid"
+
+"Phone number must contain only digits"
+
+Terms and Conditions
+"You must agree to the terms and conditions"
+
+Adding New Error Messages
 When adding new error messages:
 
-1. Check if a similar message already exists in this guide
-2. Follow the format patterns established above
-3. Maintain the same tone and style
-4. Add the new message to this guide for future reference
+Check if a similar message already exists in this guide
+
+Follow the format patterns established above
+
+Maintain the same tone and style
+
+Add the new message to this guide for future reference

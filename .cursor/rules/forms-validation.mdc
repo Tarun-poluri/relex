@@ -1,0 +1,42 @@
+description: Form Handling and Validation Guidelines globs: frontend/components/forms//*.ts, frontend/components/forms//.tsx, frontend/utils/validation/**/.ts alwaysApply: true
+Forms and Validation
+
+3.1. Principles
+Consistent Approach: Leverage a consistent approach for state management, validation, and submission.
+
+Reusable Components: Design form components (like dialogs) to be reusable for both creation and editing.
+
+Dialogs for Input: Use Dialogs for user input when appropriate.
+
+3.2. Validation Framework
+react-hook-form: For robust form handling.
+
+SimpleReactValidator: For validation logic.
+
+Controlled Inputs: Bind form fields using FormField, FormControl, etc.
+
+Error Handling: Display validation messages using direct calls to SimpleReactValidator.message().
+
+3.3. Standard Validation Function Structure (for SimpleReactValidator custom rules)
+Function Signature:
+
+rule: (val: any, params?: any[], validator?: any) => boolean;
+
+Implementation:
+
+Check for emptiness first.
+
+Check for length restrictions.
+
+Check for format/pattern restrictions.
+
+Check for cross-field validations (e.g., passwordMatch custom rule).
+
+Error Messages: Use clear, specific, and consistent error messages as per Section 6.2.
+
+3.4. Example Application (Create/Edit User Dialog)
+Dialogs accept optional editingUser prop.
+
+defaultValues for useForm are conditionally set based on editingUser.
+
+onSubmit logic differentiates between creating and updating.

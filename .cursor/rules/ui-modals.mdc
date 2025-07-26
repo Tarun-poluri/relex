@@ -1,0 +1,20 @@
+description: UI Elements, Modals, and Dialogs Guidelines globs: frontend/components/ui//*.tsx, frontend/components/dialogs//*.tsx alwaysApply: true
+UI Elements & Modals
+
+4.1. Consistent Modals/Dialogs for User Confirmation
+AlertDialogs or Dialogs: Use from @/components/ui for confirmation or data entry.
+
+State Control: Use useState to control the open/closed state.
+
+Clear Communication: AlertDialogTitle and AlertDialogDescription must clearly state the action and its implications.
+
+Confirmation Actions: AlertDialogAction for data modification, AlertDialogCancel to close.
+
+4.1.2 Action-Oriented UI Elements
+Clear Labels: Buttons and menu items should have descriptive labels (e.g., "Create User", "Edit User").
+
+Icons: Use relevant lucide-react icons (e.g., Plus, Edit, Trash2, UserX, UserCheck).
+
+Dropdown Menus: Use DropdownMenu for multiple actions on a single item.
+
+Conditional Rendering: Display actions conditionally based on data state (e.g., "Deactivate" for active users, "Activate" for inactive users).

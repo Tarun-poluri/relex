@@ -15,6 +15,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import React from "react"
+import { useRouter } from "next/navigation"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { logout } from "@/store/actions/authActions"
 
 interface DashboardHeaderProps {
   searchQuery: string;
@@ -22,8 +25,25 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ searchQuery, onSearchChange }: DashboardHeaderProps) {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const loggedInUser = useAppSelector((state) => state.auth.user);
+
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     onSearchChange(event.target.value);
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.push("/login");
+  };
+
+  const handleProfileClick = () => {
+    router.push("/profile");
+  };
+
+  const handleSettingsClick = () => {
+    router.push("/settings");
   };
 
   return (
@@ -53,7 +73,9 @@ export function DashboardHeader({ searchQuery, onSearchChange }: DashboardHeader
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
                 <AvatarImage src="/placeholder-user.jpg" alt="Admin" />
-                <AvatarFallback>AD</AvatarFallback>
+                <AvatarFallback>
+                  {loggedInUser?.email ? loggedInUser.email.substring(0, 2).toUpperCase() : "AD"}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -61,20 +83,20 @@ export function DashboardHeader({ searchQuery, onSearchChange }: DashboardHeader
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">Admin User</p>
-                <p className="text-xs leading-none text-muted-foreground">admin@relaxflow.com</p>
+                <p className="text-xs leading-none text-muted-foreground">{loggedInUser?.email || "admin@relaxflow.com"}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleProfileClick}>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSettingsClick}>
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
